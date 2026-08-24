@@ -4,7 +4,7 @@
 
 The project was developed as an academic Human-AI Interaction prototype. Its goal is to support beginner and intermediate trainees who want technique feedback but do not always have access to a personal trainer.
 
-[Live demo](https://formsenseplus.netlify.app/)
+[Try FormSense+](https://formsenseplus.netlify.app/)
 
 > FormSense+ is an educational prototype. It is not medical advice, does not replace a certified trainer, and should not be used to train through pain or injury.
 
