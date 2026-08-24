@@ -2,7 +2,7 @@
 
 > An interactive AI exercise coach that analyzes uploaded workout videos and turns pose-estimation signals into concise, actionable form feedback.
 
-**[Open the live demo](https://formsenseplus.netlify.app/)**
+**[FormSense+](https://formsenseplus.netlify.app/)**
 
 FormSense+ helps beginner and intermediate trainees practice strength exercises more safely and deliberately. The user selects an exercise, uploads front and side views, receives structured feedback on movement quality, and can review the skeletal overlay or explore related exercises.
 
