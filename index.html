@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FormSense+ | AI Coach</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <style>
+        :root {
+            --primary: #00ff88;
+            --blue: #3b82f6;
+            --blue-hover: #2563eb;
+            --bg: #121212;
+            --surface: #1e1e1e;
+            --text: #ffffff;
+            --danger: #ff4d4d;
+            --success: #00cc6a;
+            --warn: #ffcc00;
+            --ai-bg: #2a2a3e;
+
+            /* Severity Colors */
+            --sev-crit: #ff0000;
+            --sev-med: #ff8800;
+            --sev-low: #ffcc00;
+        }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding-bottom: 50px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+
+        .container {
+            max-width: 1200px;
+            width: 95%;
+            background: var(--surface);
+            padding: 40px;
+            border-radius: 20px;
+            margin-top: 30px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.6);
+            text-align: center;
+            box-sizing: border-box;
+        }
+
+        h1 span { color: var(--primary); }
+        
+        /* New Intro Text Style */
+        .intro-text {
+            color: #cccccc;
+            font-size: 1.1em;
+            max-width: 700px;
+            margin: 10px auto 40px auto;
+            line-height: 1.6;
+        }
+
+        .step-indicator { color: #888; font-size: 0.9em; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; display: block; }
+
+        .view { display: none; animation: fadeIn 0.4s ease; }
+        .view.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-top: 30px; }
+        .card { background: #2d2d2d; padding: 25px; border-radius: 15px; cursor: pointer; transition: 0.2s; border: 2px solid transparent; }
+        .card:hover { border-color: var(--primary); background: #333; transform: translateY(-5px); }
+        .card-icon { font-size: 40px; display: block; margin-bottom: 15px; }
+
+        .upload-area {
+            display: block;
+            border: 2px dashed #444;
+            padding: 50px;
+            border-radius: 15px;
+            margin: 30px auto;
+            width: 100%;
+            box-sizing: border-box;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .upload-area:hover { border-color: var(--primary); background: rgba(0, 255, 136, 0.05); }
+
+        canvas { width: 100%; max-width: 700px; background: #000; border-radius: 10px; margin-top: 20px; display: block; margin: 20px auto; }
+
+        .results-container { display: flex; flex-wrap: wrap; gap: 20px; margin-top: 30px; text-align: left; }
+        .result-col { flex: 1; min-width: 280px; background: #252525; padding: 20px; border-radius: 10px; }
+
+        .good-header { color: var(--success); border-bottom: 1px solid #444; padding-bottom: 10px; margin-bottom: 15px; }
+        .bad-header { color: var(--danger); border-bottom: 1px solid #444; padding-bottom: 10px; margin-bottom: 15px; }
+        .warn-header { color: var(--warn); border-bottom: 1px solid #444; padding-bottom: 10px; margin-bottom: 15px; }
+
+        ul { padding-left: 20px; margin: 0; }
+        li { margin-bottom: 12px; line-height: 1.5; font-size: 1.05em; }
+
+        /* Severity Tags Styling */
+        .tag {
+            font-size: 0.75em;
+            font-weight: bold;
+            padding: 2px 8px;
+            border-radius: 12px;
+            margin-left: 8px;
+            text-transform: uppercase;
+            vertical-align: middle;
+            display: inline-block;
+        }
+        .tag-crit { color: #fff; background: var(--sev-crit); box-shadow: 0 0 5px rgba(255, 77, 77, 0.4); }
+        .tag-med { color: #000; background: var(--sev-med); box-shadow: 0 0 5px rgba(255, 170, 0, 0.4); }
+        .tag-low { color: #fff; background: var(--sev-low); box-shadow: 0 0 5px rgba(0, 170, 255, 0.4); }
+
+        .btn { padding: 15px 40px; border: none; border-radius: 50px; font-weight: bold; font-size: 18px; cursor: pointer; margin: 10px; transition: 0.2s; display: inline-block; width: 100%; max-width: 300px; text-decoration: none; color: white; }
+        .btn-primary { background: var(--primary); color: #000; }
+        .btn-primary:hover { background: #00cc6a; transform: scale(1.05); }
+        .btn-outline { background: transparent; border: 2px solid #555; color: #fff; padding: 12px 30px; font-size: 16px; }
+        .btn-outline:hover { border-color: #fff; background: rgba(255,255,255,0.1); }
+
+        .btn-blue { background: var(--blue); color: white; }
+        .btn-blue:hover { background: var(--blue-hover); transform: scale(1.05); }
+
+        .action-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            margin-top: 40px;
+        }
+
+        .final-buttons-row {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            width: 100%;
+        }
+
+        /* AI COACH STYLES */
+        .ai-box {
+            background: linear-gradient(135deg, #1e1e1e 0%, #252535 100%);
+            border: 1px solid #444;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            text-align: left;
+            position: relative;
+            overflow: hidden;
+        }
+        .ai-box h3 { margin-top: 0; color: #a0a0ff; display: flex; align-items: center; gap: 10px; }
+        .ai-content { font-size: 1.1em; line-height: 1.6; color: #e0e0e0; }
+
+        /* RECOMMENDATION CARDS */
+        #rec-output {
+            margin-top: 25px;
+            padding: 30px;
+            background: #2a2a3e;
+            border: 1px solid #555;
+            border-radius: 15px;
+            text-align: left;
+            direction: ltr;
+            animation: fadeIn 0.5s ease;
+            width: 100%;
+            box-sizing: border-box;
+            display: block;
+            height: auto;
+            overflow: visible;
+            padding-bottom: 50px;
+        }
+
+        #rec-output > p { margin-bottom: 25px; text-align: center; font-size: 1.1em; color: #fff; }
+
+        .rec-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px;
+            width: 100%;
+            align-items: stretch;
+        }
+
+        .rec-card {
+            background: #1e1e1e;
+            border: 1px solid #444;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: left;
+            direction: ltr;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            position: relative;
+            border-left: 5px solid var(--primary);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            word-wrap: break-word;
+        }
+        .rec-card:hover { transform: translateY(-5px); border-color: var(--blue); background: #252535; }
+
+        .rec-title { font-size: 1.4em; color: #fff; font-weight: bold; margin-bottom: 15px; border-bottom: 1px solid #444; padding-bottom: 12px; }
+        .rec-step { font-size: 0.95em; color: #ddd; margin-bottom: 12px; line-height: 1.5; display: flex; align-items: flex-start; gap: 10px; }
+        .rec-step div { flex: 1; word-wrap: break-word; word-break: break-word; }
+        .rec-step span.icon { color: var(--primary); font-size: 1.2em; min-width: 25px; margin-top: 2px; flex-shrink: 0; }
+
+        .yt-btn {
+            margin-top: auto; background: #cc0000; color: white; padding: 12px; border-radius: 8px; text-align: center; text-decoration: none; font-weight: bold; font-size: 1em; display: flex; justify-content: center; align-items: center; gap: 8px; transition: 0.2s; width: 100%; box-sizing: border-box;
+        }
+        .yt-btn:hover { background: #ff3333; transform: scale(1.02); }
+
+        .typing-indicator span { display: inline-block; width: 8px; height: 8px; background-color: #a0a0ff; border-radius: 50%; animation: typing 1s infinite; margin: 0 2px; }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing { 0%, 100% { transform: translateY(0); opacity: 0.5; } 50% { transform: translateY(-5px); opacity: 1; } }
+
+        #video-section { display: none; margin-top: 30px; background: #000; padding: 20px; border-radius: 15px; }
+        #outputVideo { width: 100%; max-width: 700px; border-radius: 10px; }
+        .loader { font-size: 1.2em; color: var(--primary); margin: 20px; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>FormSense<span>+</span></h1>
+
+        <div id="view-home" class="view active">
+            <p class="intro-text">
+                FormSense+ is an advanced AI-powered training tool designed to refine your technique. 
+                By analyzing 33 key biomechanical points on your body, it tracks your movement 
+                and provides instant, expert feedback to help you perform exercises safely and effectively.
+                Please make sure you upload good quality videos and that the background is not prominent.
+            </p>
+
+            <h2>Select Exercise to Analyze</h2>
+            <div class="grid">
+                <div class="card" onclick="startWorkflow('Squat')">
+                    <span class="card-icon">🏋️</span><h3>Squat</h3>
+                </div>
+                <div class="card" onclick="startWorkflow('Bicep Curl')">
+                    <span class="card-icon">💪</span><h3>Bicep Curl</h3>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-upload" class="view">
+            <span class="step-indicator" id="step-label">Step 1 / 2</span>
+            <h2 id="upload-title">Upload Front View Video</h2>
+            <p style="color:#aaa" id="upload-desc">Please record yourself facing the camera directly.</p>
+            <label class="upload-area">
+                <span style="font-size:40px">📁</span><br><br>
+                Click to browse video file
+                <input type="file" id="videoUploader" accept="video/*" style="display:none">
+            </label>
+            <br>
+            <button class="btn btn-outline" onclick="location.reload()">Back to Start</button>
+        </div>
+
+        <div id="view-side-select" class="view">
+            <span class="step-indicator">Step 2 / 2</span>
+            <h2>Select Side View Direction</h2>
+            <p style="color:#aaa">Which side is visible to the camera?</p>
+            <div class="grid">
+                <div class="card" onclick="setSideAndUpload('Side-Left')">
+                    <span class="card-icon">⬅️</span><h3>Left Side</h3>
+                    <small>Facing Left</small>
+                </div>
+                <div class="card" onclick="setSideAndUpload('Side-Right')">
+                    <span class="card-icon">➡️</span><h3>Right Side</h3>
+                    <small>Facing Right</small>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-processing" class="view">
+            <h2>Analyzing Biomechanics...</h2>
+            <div class="loader">Extracting skeleton & calculating vectors...</div>
+            <canvas id="outputCanvas"></canvas>
+        </div>
+
+        <div id="view-results" class="view">
+            <h2 id="results-title">Analysis Complete</h2>
+
+            <div class="ai-box">
+                <h3>🤖 AI Coach Summary</h3>
+                <div id="ai-loading" style="display:none; margin-top: 15px;">
+                    <div class="typing-indicator"><span></span><span></span><span></span></div> Getting expert feedback...
+                </div>
+                <div id="ai-response" class="ai-content" style="display:none; margin-top: 15px;"></div>
+            </div>
+
+            <div class="results-container">
+                <div class="result-col">
+                    <h3 class="good-header">✅ To Preserve (Good)</h3>
+                    <ul id="list-good"></ul>
+                </div>
+                <div class="result-col">
+                    <h3 class="bad-header">⚠️ To Improve (Correction)</h3>
+                    <ul id="list-bad"></ul>
+                </div>
+                <div class="result-col" id="col-warn" style="display:none;">
+                    <h3 class="warn-header">👁️ Uncertainty</h3>
+                    <ul id="list-warn"></ul>
+                </div>
+            </div>
+
+            <div style="margin-top: 40px;">
+                <button class="btn btn-outline" onclick="toggleVideo()">🎥 Watch Replay</button>
+                <div id="video-section">
+                    <video id="outputVideo" controls></video>
+                    <br><br>
+                    <a id="downloadLink" class="btn btn-outline" style="text-decoration:none;">⬇️ Download Video</a>
+                </div>
+            </div>
+
+            <hr style="margin: 40px 0; border-color: #333;">
+
+            <div class="action-container">
+                <button id="retake-btn" class="btn btn-outline" onclick="retakeStep()">🔄 Retake This View</button>
+
+                <div id="intermediate-panel">
+                    <button id="action-btn" class="btn btn-primary" onclick="nextStep()">Continue to Side View ➡️</button>
+                </div>
+
+                <div id="final-panel" style="display:none; width: 100%;">
+                    <div class="final-buttons-row">
+                        <button class="btn btn-primary" onclick="location.reload()">Start New Session</button>
+                        <button id="btn-recommend" class="btn btn-blue" onclick="getRecommendations()">✨ More Exercises</button>
+                    </div>
+                    <div id="rec-output" style="display:none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <video id="videoSource" playsinline muted style="display:none"></video>
+
+    <script>
+        const CONF_THRESHOLD = 85;
+
+        // SEVERITY CONSTANTS
+        const SEV_LOW = { label: 'Minor', class: 'tag-low' };
+        const SEV_MED = { label: 'Moderate', class: 'tag-med' };
+        const SEV_CRIT = { label: 'Critical', class: 'tag-crit' };
+
+        let currentExercise = '';
+        let currentAngle = '';
+        let workflowStage = 0;
+        let framesHistory = [];
+        let mediaRecorder, recordedChunks = [];
+        let lastReportData = null;
+
+        // Gemini requests are routed through a Netlify Function so the API key
+        // is never shipped to the browser or committed to the repository.
+        async function callGemini(prompt, responseMimeType) {
+            const response = await fetch('/.netlify/functions/gemini', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt, responseMimeType })
+            });
+
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'AI request failed');
+            return data;
+        }
+
+        // --- HELPER: CALCULATE LANDMARK CONFIDENCE ---
+        function getSegmentConfidence(indices) {
+            if (!framesHistory || framesHistory.length === 0) return 0;
+            let totalConf = 0;
+            let frameCount = 0;
+
+            framesHistory.forEach(f => {
+                if(!f.landmarks) return;
+                let frameSum = 0;
+                let count = 0;
+                indices.forEach(idx => {
+                    if (f.landmarks[idx]) {
+                        frameSum += f.landmarks[idx].visibility;
+                        count++;
+                    }
+                });
+                if(count > 0) {
+                    totalConf += (frameSum / count);
+                    frameCount++;
+                }
+            });
+
+            if (frameCount === 0) return 0;
+            return Math.round((totalConf / frameCount) * 100);
+        }
+
+        // --- HELPER: CLASSIFY FEEDBACK WITH SEVERITY ---
+        function addFeedback(report, confidence, isGood, goodMsg, badMsg, severity = SEV_MED) {
+            if (confidence < CONF_THRESHOLD) {
+                // Low confidence -> Uncertainty (Yellow)
+                report.warn.push(`${isGood ? goodMsg : badMsg} (Low Confidence: ${confidence}%)`);
+            } else {
+                // High confidence
+                if (isGood) {
+                    // Good -> Green (No severity needed usually)
+                    report.good.push(`${goodMsg} (Conf: ${confidence}%)`);
+                } else {
+                    // Bad -> Red (With Severity Tag)
+                    const tagHtml = `<span class="tag ${severity.class}">${severity.label}</span>`;
+                    report.bad.push(`${badMsg} ${tagHtml} (Conf: ${confidence}%)`);
+                }
+            }
+        }
+
+        function startWorkflow(ex) {
+            currentExercise = ex;
+            workflowStage = 0;
+            currentAngle = 'Front';
+            document.getElementById('step-label').innerText = "Step 1: Front Analysis";
+            document.getElementById('upload-title').innerText = `Upload ${ex} (Front View)`;
+            document.getElementById('upload-desc').innerText = "Please ensure your full body is visible facing the camera.";
+            switchView('view-upload');
+        }
+
+        function setSideAndUpload(side) {
+            currentAngle = side;
+            document.getElementById('step-label').innerText = "Step 2: Side Analysis";
+            document.getElementById('upload-title').innerText = `Upload ${currentExercise} (${side})`;
+            document.getElementById('upload-desc').innerText = "Please ensure your profile is fully visible.";
+            switchView('view-upload');
+        }
+
+        function retakeStep() {
+            if (workflowStage === 0) {
+                switchView('view-upload');
+                document.getElementById('upload-title').innerText = `Upload ${currentExercise} (Front View)`;
+            } else {
+                switchView('view-side-select');
+            }
+        }
+
+        function nextStep() {
+            if (workflowStage === 0) {
+                workflowStage = 1;
+                switchView('view-side-select');
+            } else {
+                location.reload();
+            }
+        }
+
+        function switchView(id) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        function toggleVideo() {
+            const sec = document.getElementById('video-section');
+            sec.style.display = (sec.style.display === 'block') ? 'none' : 'block';
+        }
+
+        document.getElementById('videoUploader').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const url = URL.createObjectURL(file);
+                videoElement.src = url;
+                framesHistory = [];
+                document.getElementById('outputVideo').src = "";
+                switchView('view-processing');
+                videoElement.onloadeddata = () => startProcessing();
+            }
+            e.target.value = '';
+        });
+
+        // --- MATH HELPERS ---
+        function getAngle(a, b, c) {
+            let radians = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
+            let angle = Math.abs(radians * 180.0 / Math.PI);
+            return (angle > 180.0) ? 360 - angle : angle;
+        }
+        function getVectorAngle(p1, p2) {
+            let dy = p2.y - p1.y; let dx = p2.x - p1.x;
+            return Math.atan2(dy, dx) * (180 / Math.PI);
+        }
+        function getVerticalDeviation(p1, p2) {
+            let dx = Math.abs(p1.x - p2.x); let dy = Math.abs(p1.y - p2.y);
+            return Math.atan2(dx, dy) * (180 / Math.PI);
+        }
+        function getVerticalDist(p1, p2) { return Math.abs(p1.y - p2.y); }
+        function getEuclideanDist(p1, p2) {
+            return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+        }
+        function getKneeOffset(hip, ankle, knee, side) {
+            const totalH = ankle.y - hip.y; if (totalH === 0) return 0;
+            const ratio = (knee.y - hip.y) / totalH;
+            const expectedX = hip.x + ratio * (ankle.x - hip.x);
+            const diff = knee.x - expectedX;
+            const normDiff = diff / totalH;
+            return (side === 'left') ? -normDiff : normDiff;
+        }
+
+        function checkDrift(shoulder, elbow, side) {
+            let dx = Math.abs(shoulder.x - elbow.x);
+            let dy = Math.abs(shoulder.y - elbow.y);
+            let angle = Math.atan2(dx, dy) * (180 / Math.PI);
+            let isForward = false;
+            if (side === 'right') { if (elbow.x > shoulder.x) isForward = true; }
+            else { if (elbow.x < shoulder.x) isForward = true; }
+            return isForward ? angle : -angle;
+        }
+
+        function movingAverage(data, windowSize=5) {
+            let res = [];
+            for (let i=0; i<data.length; i++) {
+                let s = Math.max(0, i - Math.floor(windowSize/2));
+                let e = Math.min(data.length, i + Math.floor(windowSize/2) + 1);
+                let sum = 0; for(let j=s; j<e; j++) sum += data[j];
+                res.push(sum / (e-s));
+            }
+            return res;
+        }
+        function getPercentile(data, q) {
+            if (!data || data.length === 0) return 0;
+            const sorted = [...data].sort((a, b) => a - b);
+            const pos = (sorted.length - 1) * (q / 100);
+            const base = Math.floor(pos);
+            const rest = pos - base;
+            return (sorted[base + 1] !== undefined) ? sorted[base] + rest * (sorted[base + 1] - sorted[base]) : sorted[base];
+        }
+        function getStdDev(array) {
+            if (!array || array.length === 0) return 0;
+            const n = array.length;
+            const mean = array.reduce((a, b) => a + b) / n;
+            return Math.sqrt(array.map(x => Math.pow(x - mean, 2)).reduce((a, b) => a + b) / n);
+        }
+
+        // --- MEDIAPIPE ---
+        const videoElement = document.getElementById('videoSource');
+        const canvasElement = document.getElementById('outputCanvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const pose = new Pose({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`});
+        pose.setOptions({modelComplexity: 1, smoothLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5});
+        pose.onResults(onPoseResults);
+
+        async function startProcessing() {
+            canvasElement.width = videoElement.videoWidth;
+            canvasElement.height = videoElement.videoHeight;
+            const stream = canvasElement.captureStream(30);
+            mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+            recordedChunks = [];
+            mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
+            mediaRecorder.onstop = finalizeAnalysis;
+            mediaRecorder.start();
+            await videoElement.play();
+            async function frameLoop() {
+                if (videoElement.paused || videoElement.ended) { mediaRecorder.stop(); return; }
+                await pose.send({image: videoElement});
+                requestAnimationFrame(frameLoop);
+            }
+            frameLoop();
+        }
+
+        function onPoseResults(results) {
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+            if (results.poseLandmarks) {
+                drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS, {color: '#ffffff', lineWidth: 2});
+                drawLandmarks(canvasCtx, results.poseLandmarks, {color: '#00ff88', lineWidth: 1, radius: 3});
+
+                const lm = results.poseLandmarks;
+                const width = canvasElement.width;
+                const height = canvasElement.height;
+                const lh = lm[23], rh = lm[24], la = lm[27], ra = lm[28];
+
+                if (currentAngle === 'Front') {
+                    if (lh.visibility > 0.5 && la.visibility > 0.5) {
+                        canvasCtx.beginPath(); canvasCtx.moveTo(lh.x*width, lh.y*height); canvasCtx.lineTo(la.x*width, la.y*height);
+                        canvasCtx.strokeStyle = 'rgba(255, 255, 0, 0.6)'; canvasCtx.lineWidth = 2; canvasCtx.setLineDash([5, 5]); canvasCtx.stroke(); canvasCtx.setLineDash([]);
+                    }
+                    if (rh.visibility > 0.5 && ra.visibility > 0.5) {
+                        canvasCtx.beginPath(); canvasCtx.moveTo(rh.x*width, rh.y*height); canvasCtx.lineTo(ra.x*width, ra.y*height);
+                        canvasCtx.strokeStyle = 'rgba(255, 255, 0, 0.6)'; canvasCtx.lineWidth = 2; canvasCtx.setLineDash([5, 5]); canvasCtx.stroke(); canvasCtx.setLineDash([]);
+                    }
+                }
+                framesHistory.push({ landmarks: results.poseLandmarks, timestamp: Date.now() });
+            }
+            canvasCtx.restore();
+        }
+
+        function finalizeAnalysis() {
+            try {
+                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                document.getElementById('outputVideo').src = url;
+                document.getElementById('downloadLink').href = url;
+                document.getElementById('downloadLink').download = `FormSense_${currentExercise}_${currentAngle}.webm`;
+
+                if (currentExercise === 'Squat') analyzeSquat();
+                else if (currentExercise === 'Bicep Curl') analyzeBicepCurl();
+
+                const intermediatePanel = document.getElementById('intermediate-panel');
+                const finalPanel = document.getElementById('final-panel');
+                const retakeBtn = document.getElementById('retake-btn');
+
+                if (workflowStage === 0) {
+                    // Front finished
+                    document.getElementById('results-title').innerText = "Front Analysis Complete";
+                    retakeBtn.innerText = "🔄 Retake Front View";
+                    intermediatePanel.style.display = 'block';
+                    finalPanel.style.display = 'none';
+                } else {
+                    // Side finished
+                    document.getElementById('results-title').innerText = "Side Analysis Complete";
+                    retakeBtn.innerText = "🔄 Retake Side View";
+                    intermediatePanel.style.display = 'none';
+                    finalPanel.style.display = 'block';
+
+                    // Update Button Text
+                    document.getElementById('btn-recommend').innerText = `✨ More exercises like ${currentExercise}`;
+                }
+
+                document.getElementById('ai-loading').style.display = 'none';
+                document.getElementById('ai-response').style.display = 'none';
+                document.getElementById('ai-response').innerHTML = '';
+                document.getElementById('rec-output').style.display = 'none';
+                document.getElementById('rec-output').innerHTML = '';
+
+                switchView('view-results');
+                triggerAICoach();
+            } catch(e) {
+                console.error(e);
+            }
+        }
+
+        // --- EXERCISE LOGIC (UPDATED WITH YOUR SEVERITY RULES) ---
+        function analyzeSquat() {
+            const report = { good: [], bad: [], warn: [] };
+            if (currentAngle === 'Front') {
+                let raw = { tilt: [], valgusL: [], valgusR: [], stackL: [], stackR: [], footAngL: [], footAngR: [], thighLen: [], lean: [], conf: [] };
+                framesHistory.forEach(f => {
+                    const lm = f.landmarks;
+                    const ls=11, rs=12, lh=23, rh=24, lk=25, rk=26, la=27, ra=28, lf=31, rf=32;
+                    const c = (lm[ls].visibility + lm[rs].visibility + lm[lk].visibility + lm[rk].visibility + lm[la].visibility) / 5;
+                    raw.conf.push(c);
+                    const dy = Math.abs(lm[rs].y - lm[ls].y); const dx = Math.abs(lm[rs].x - lm[ls].x);
+                    raw.tilt.push(Math.atan2(dy, dx) * (180/Math.PI));
+                    raw.stackL.push(getVerticalDeviation(lm[ls], lm[la]));
+                    raw.stackR.push(getVerticalDeviation(lm[rs], lm[ra]));
+                    raw.valgusL.push(getKneeOffset(lm[lh], lm[la], lm[lk], 'left'));
+                    raw.valgusR.push(getKneeOffset(lm[rh], lm[ra], lm[rk], 'right'));
+                    let faL = Math.abs(getVectorAngle(lm[la], lm[lf]) - 90); let faR = Math.abs(getVectorAngle(lm[ra], lm[rf]) - 90);
+                    raw.footAngL.push(faL); raw.footAngR.push(faR);
+                    const lenL = getVerticalDist(lm[lh], lm[lk]); const lenR = getVerticalDist(lm[rh], lm[rk]);
+                    raw.thighLen.push((lenL + lenR)/2);
+                    const mid_sh = { x: (lm[ls].x + lm[rs].x)/2, y: (lm[ls].y + lm[rs].y)/2 };
+                    const mid_hip = { x: (lm[lh].x + lm[rh].x)/2, y: (lm[lh].y + lm[rh].y)/2 };
+                    let torsoAngle = getVectorAngle(mid_sh, mid_hip);
+                    raw.lean.push(Math.abs(Math.abs(torsoAngle) - 90));
+                });
+                let validTilt=[], validStackL=[], validStackR=[], validFoot=[], validLen=[], validLean=[];
+                for(let i=0; i<raw.conf.length; i++) {
+                    if(raw.conf[i] > 0.65) {
+                        validTilt.push(raw.tilt[i]); validStackL.push(raw.stackL[i]); validStackR.push(raw.stackR[i]);
+                        validFoot.push((raw.footAngL[i] + raw.footAngR[i])/2); validLen.push(raw.thighLen[i]); validLean.push(raw.lean[i]);
+                    }
+                }
+
+                if(validLen.length < 5) { report.warn.push("Low Visibility: Cannot accurately analyze Front Squat."); displayReport(report); return; }
+
+                // Confidence Calcs
+                const confShoulders = getSegmentConfidence([11, 12]);
+                const confLegs = getSegmentConfidence([23, 24, 25, 26, 27, 28]);
+                const confBody = getSegmentConfidence([11, 12, 23, 24]);
+                const confFeet = getSegmentConfidence([27, 28, 31, 32]);
+
+                // 1. Shoulders (3-6 Minor, 6-9 Moderate, 9+ Critical)
+                const maxTilt = getPercentile(validTilt, 95);
+                if (maxTilt <= 3) addFeedback(report, confShoulders, true, "Symmetry: Shoulders are level", "", SEV_LOW);
+                else if (maxTilt <= 6) addFeedback(report, confShoulders, false, "", "Symmetry: Slight tilt detected - Keep your shoulders balanced. ", SEV_LOW);
+                else if (maxTilt <= 9) addFeedback(report, confShoulders, false, "", "Symmetry: tilt detected - Keep your shoulders balanced.", SEV_MED);
+                else addFeedback(report, confShoulders, false, "", `Symmetry: Significant tilt detected - Please ensure balance (${Math.round(maxTilt)}°)`, SEV_CRIT);
+
+                // 2. Knees (Valgus) - Always CRITICAL
+                let activeValgus = [];
+                for(let i=0; i<raw.conf.length; i++) { if(raw.conf[i] > 0.65) { activeValgus.push(Math.max(raw.valgusL[i], raw.valgusR[i])); } }
+                const maxValgus = (activeValgus.length > 5) ? getPercentile(activeValgus, 95) : 0;
+                if (maxValgus > 0.10) addFeedback(report, confLegs, false, "", "Knees: collapse detected - Push knees outward", SEV_CRIT);
+                else addFeedback(report, confLegs, true, "Knees: Tracking well", "", SEV_LOW);
+
+                // 3. Body Lean (<15 Good, 15-25 Moderate, >25 Critical)
+                const maxLean = getPercentile(validLean, 95);
+                if (maxLean <= 15) addFeedback(report, confBody, true, "Upper Body: Vertical and balanced", "", SEV_LOW);
+                else if (maxLean <= 25) addFeedback(report, confBody, false, "", `Upper Body: Slightly leaning to side - Try to keep your back straight (${Math.round(maxLean)}°)`, SEV_MED);
+                else addFeedback(report, confBody, false, "", `Upper Body: Significant unstable lean - Watch your back! (${Math.round(maxLean)}°)`, SEV_CRIT);
+
+                // 4. Foot Angle - Always MINOR
+                const avgFoot = getPercentile(validFoot, 50);
+                if (avgFoot >= 20 && avgFoot <= 45) addFeedback(report, confFeet, true, `Feet Position: Angle is good (${Math.round(avgFoot)}°)`, "", SEV_LOW);
+                else if (avgFoot < 20) addFeedback(report, confFeet, false, "", `Feet Position: Feet are very straight (${Math.round(avgFoot)}°)`, SEV_LOW);
+                else addFeedback(report, confFeet, false, "", `Feet Position: Feet turned out wide`, SEV_LOW);
+
+                // 5. Depth (Front Proxy) - Always MODERATE
+                const minL = getPercentile(validLen, 5); const maxL = getPercentile(validLen, 95); const ratio = minL / maxL;
+                if (ratio < 0.4) addFeedback(report, confLegs, true, `Depth: Good depth achieved`, "", SEV_LOW);
+                else addFeedback(report, confLegs, false, "", "Depth: Appears shallow. Go lower", SEV_MED);
+
+            } else {
+                let raw = { hipAng: [], backAng: [], shinAng: [], heelY: [], shankLen: [], conf: [] };
+                const idx = currentAngle.includes('Right') ? [12,24,26,28,32,30] : [11,23,25,27,31,29];
+                framesHistory.forEach(f => {
+                    const lm = f.landmarks;
+                    const s = lm[idx[0]], h = lm[idx[1]], k = lm[idx[2]], a = lm[idx[3]], foot = lm[idx[4]], heel = lm[idx[5]];
+                    raw.conf.push((h.visibility + k.visibility + a.visibility)/3);
+                    raw.hipAng.push(getAngle(h, k, a));
+                    raw.backAng.push(getAngle(s, h, {x: h.x, y: h.y - 0.5}));
+                    let angleShinFoot = getAngle(k, a, foot);
+                    raw.shinAng.push(Math.abs(90 - angleShinFoot));
+                    raw.heelY.push(heel.y);
+                    raw.shankLen.push(getEuclideanDist(k, a));
+                });
+                let validHip = [], validBack = [], validShin = [], validHeel = [], validShank = [];
+                for(let i=0; i<raw.conf.length; i++) {
+                    if(raw.conf[i] > 0.65) {
+                        validHip.push(raw.hipAng[i]); validBack.push(raw.backAng[i]); validShin.push(raw.shinAng[i]); validHeel.push(raw.heelY[i]); validShank.push(raw.shankLen[i]);
+                    }
+                }
+
+                if (validHip.length < 5) { report.warn.push("Low Visibility: Side Squat."); displayReport(report); return; }
+
+                const confDepth = getSegmentConfidence([idx[1], idx[2], idx[3]]);
+                const confBack = getSegmentConfidence([idx[0], idx[1]]);
+                const confHeel = getSegmentConfidence([idx[5]]);
+
+                // 1. Depth (80-90 Minor, 90-100 Moderate, 100+ Critical)
+                const minHip = getPercentile(validHip, 5);
+                if (minHip < 80) addFeedback(report, confDepth, true, `Depth: Excellent depth (${Math.round(minHip)}°)`, "", SEV_LOW);
+                else if (minHip <= 90) addFeedback(report, confDepth, false, "", `Depth: Almost there. Just a little lower (${Math.round(minHip)}°)`, SEV_LOW);
+                else if (minHip <= 100) addFeedback(report, confDepth, false, "", `Depth: Too shallow. Go lower (${Math.round(minHip)}°)`, SEV_MED);
+                else addFeedback(report, confDepth, false, "", `Depth: Too shallow. Go lower (${Math.round(minHip)}°)`, SEV_CRIT);
+
+                // 2. Posture
+                const maxBack = getPercentile(validBack, 95);
+                if (maxBack <= 45) addFeedback(report, confBack, true, `Posture: Good posture (${Math.round(maxBack)}°)`, "", SEV_LOW);
+                else if (maxBack <= 50) addFeedback(report, confBack, false, "", `Posture: Slight forward lean - Try to keep your back straight (${Math.round(maxBack)}°)`, SEV_LOW);
+                else if (maxBack <= 60) addFeedback(report, confBack, false, "", `Posture: Forward lean detected - Try to keep your back straight (${Math.round(maxBack)}°)`, SEV_MED);
+                else addFeedback(report, confBack, false, "", `Posture: Excessive forward lean - Watch your back! (${Math.round(maxBack)}°)`, SEV_CRIT);
+
+                // 3. knee Mobility (20-30 Moderate, >30 Critical)
+                const maxShinDev = getPercentile(validShin, 95);
+                if (maxShinDev <= 20) addFeedback(report, confDepth, true, "knee Mobility: Good", "", SEV_LOW);
+                else if (maxShinDev <= 25) addFeedback(report, confDepth, false, "", "knee Mobility: Knees past toes - Try shifting your weight back ", SEV_LOW);
+                else if (maxShinDev <= 30) addFeedback(report, confDepth, false, "", "knee Mobility: Knees past toes - Try shifting your weight back ", SEV_MED);
+                else addFeedback(report, confDepth, false, "", "knee Mobility: Excessive knees past toes - You have to shift your weight backwards", SEV_CRIT);
+
+                // 4. Heel Stability - Always MINOR
+                const baselineHeel = validHeel.length > 0 ? (validHeel.slice(0, 15).reduce((a,b)=>a+b,0) / 15) : 0;
+                const minHeelY = validHeel.length > 0 ? Math.min(...validHeel) : 0;
+                const maxHeelLift = baselineHeel - minHeelY;
+                const avgShankLen = validShank.reduce((a,b)=>a+b,0) / validShank.length;
+                const liftThreshold = avgShankLen * 0.15;
+
+                if (maxHeelLift < liftThreshold) addFeedback(report, confHeel, true, "Stability: Heels planted", "", SEV_LOW);
+                else addFeedback(report, confHeel, false, "", "Stability: Heels lifting detected - Try to keep them on the ground", SEV_LOW);
+            }
+            displayReport(report);
+        }
+
+        function analyzeBicepCurl() {
+            const report = { good: [], bad: [], warn: [] };
+            if (currentAngle === 'Front') {
+                let raw = { flexL: [], flexR: [], torso: [], flareL: [], flareR: [], shTilt: [], conf: [] };
+                framesHistory.forEach(f => {
+                    const lm = f.landmarks;
+                    const ls=11, rs=12, le=13, re=14, lw=15, rw=16, h=24;
+                    const c = (lm[ls].visibility + lm[rs].visibility + lm[le].visibility)/3;
+                    raw.conf.push(c);
+                    raw.flexL.push(getAngle(lm[ls], lm[le], lm[lw]));
+                    raw.flexR.push(getAngle(lm[rs], lm[re], lm[rw]));
+                    const midS = {x: (lm[ls].x+lm[rs].x)/2, y: (lm[ls].y+lm[rs].y)/2};
+                    const midH = {x: (lm[23].x+lm[24].x)/2, y: (lm[23].y+lm[24].y)/2};
+                    raw.torso.push(Math.abs(getVectorAngle(midS, midH) - 90));
+                    raw.flareL.push(getVerticalDeviation(lm[ls], lm[le]));
+                    raw.flareR.push(getVerticalDeviation(lm[rs], lm[re]));
+                    const dy = Math.abs(lm[rs].y - lm[ls].y); const dx = Math.abs(lm[rs].x - lm[ls].x);
+                    raw.shTilt.push(Math.atan2(dy, dx) * (180/Math.PI));
+                });
+                let validL=[], validR=[], validTorso=[], validFlare=[], validTilt=[];
+                for(let i=0; i<raw.conf.length; i++) {
+                    if(raw.conf[i]>0.6) {
+                        validL.push(raw.flexL[i]); validR.push(raw.flexR[i]);
+                        validTorso.push(raw.torso[i]); validFlare.push(Math.max(raw.flareL[i], raw.flareR[i]));
+                        validTilt.push(raw.shTilt[i]);
+                    }
+                }
+                if(validL.length < 5) { report.warn.push("Low visibility."); displayReport(report); return; }
+
+                const confBody = getSegmentConfidence([11,12,23,24]);
+                const confArms = getSegmentConfidence([11,12,13,14]);
+
+                // 1. Body Sway (20-30 Moderate, >30 Critical)
+                const maxSway = Math.max(...validTorso);
+                if(maxSway < 20) addFeedback(report, confBody, true, "Stability: Upper Body is steady", "", SEV_LOW);
+                else if (maxSway <= 30) addFeedback(report, confBody, false, "", "Stability: Body sway detected - Stay balanced", SEV_MED);
+                else addFeedback(report, confBody, false, "", "Stability: Significant body swinging", SEV_CRIT);
+
+                // 2. Symmetry - Always MINOR
+                const rangeL = Math.max(...validL) - Math.min(...validL);
+                const rangeR = Math.max(...validR) - Math.min(...validR);
+                const diff = Math.abs(rangeL - rangeR);
+                if(diff < 15) addFeedback(report, confArms, true, "Symmetry: Both arms working evenly", "", SEV_LOW);
+                else addFeedback(report, confArms, false, "", "Symmetry: One arm has less range", SEV_LOW);
+
+                // 3. Elbow Flare (20-30 Moderate, >30 Critical)
+                const maxFlare = getPercentile(validFlare, 95);
+                if(maxFlare < 20) addFeedback(report, confArms, true, "Elbows: Kept tucked in", "", SEV_LOW);
+                else if (maxFlare <= 30) addFeedback(report, confArms, false, "", "Elbows: Flaring out detected - Keep them close to your body ", SEV_MED);
+                else addFeedback(report, confArms, false, "", "Elbows: Excessive flare out - You have to keep them close to your body", SEV_CRIT);
+
+                // 4. Shoulders (15-25 Minor, >25 Moderate)
+                const maxShTilt = getPercentile(validTilt, 95);
+                if(maxShTilt < 15) addFeedback(report, confBody, true, "Shoulders: Balanced", "", SEV_LOW);
+                else if (maxShTilt <= 25) addFeedback(report, confBody, false, "", `Shoulders: Uneven - Aim for equality (${Math.round(maxShTilt)}° tilt)`, SEV_LOW);
+                else addFeedback(report, confBody, false, "", `Shoulders: Significant tilt - Make sure your shoulders are balanced (${Math.round(maxShTilt)}°)`, SEV_MED);
+
+            } else {
+                let raw = { flex: [], elbowDrift: [], backLean: [], conf: [] };
+                const sideName = currentAngle.includes('Right') ? 'right' : 'left';
+                const idx = (sideName === 'left') ? { s: 11, e: 13, w: 15, h: 23 } : { s: 12, e: 14, w: 16, h: 24 };
+                framesHistory.forEach(f => {
+                    const lm = f.landmarks;
+                    const s = lm[idx.s], e = lm[idx.e], w = lm[idx.w], h = lm[idx.h];
+                    raw.conf.push((s.visibility + e.visibility + w.visibility) / 3);
+                    raw.flex.push(getAngle(s, e, w));
+                    let dirDrift = checkDrift(s, e, sideName);
+                    raw.elbowDrift.push(dirDrift);
+                    let torsoDev = getVerticalDeviation(h, s);
+                    raw.backLean.push(torsoDev);
+                });
+                let validFlex = [], validDrift = [], validLean = [];
+                for(let i=0; i<raw.conf.length; i++) {
+                    if(raw.conf[i] > 0.65) {
+                        validFlex.push(raw.flex[i]); validDrift.push(raw.elbowDrift[i]); validLean.push(raw.backLean[i]);
+                    }
+                }
+                if(validFlex.length < 5) { report.warn.push("Low visibility."); displayReport(report); return; }
+
+                const confArm = getSegmentConfidence([idx.s, idx.e, idx.w]);
+                const confDrift = getSegmentConfidence([idx.s, idx.e]);
+                const confBack = getSegmentConfidence([idx.s, idx.h]);
+
+                const smoothFlex = movingAverage(validFlex, 5);
+                const maxExt = Math.max(...smoothFlex);
+                const minFlex = Math.min(...smoothFlex);
+
+                // 1. Extension (120-150 Moderate, <120 Critical)
+                if (maxExt > 150) addFeedback(report, confArm, true, `Extension: Good full stretch (${Math.round(maxExt)}°)`, "", SEV_LOW);
+                else if (maxExt >= 120) addFeedback(report, confArm, false, "", `Extension: Incomplete movement - Stretch further down (${Math.round(maxExt)}°)`, SEV_MED);
+                else addFeedback(report, confArm, false, "", `Extension: Very short range, ineffective - Stretch further down (${Math.round(maxExt)}°)`, SEV_CRIT);
+
+                // 2. Contraction (60-80 Minor, >80 Moderate)
+                if (minFlex < 60) addFeedback(report, confArm, true, "Contraction: Good squeeze at top", "", SEV_LOW);
+                else if (minFlex <= 80) addFeedback(report, confArm, false, "", `Contraction: Not enough - Could squeeze more at the top (${Math.round(minFlex)}°)`, SEV_LOW);
+                else addFeedback(report, confArm, false, "", `Contraction: Incomplete movement, Lift higher (${Math.round(minFlex)}°)`, SEV_MED);
+
+                // 3. Elbow Drift (20-35 Moderate, >35 Critical)
+                const maxForwardDrift = getPercentile(validDrift, 95);
+                if (maxForwardDrift < 20) addFeedback(report, confDrift, true, "Elbows: Locked in place", "", SEV_LOW);
+                else if (maxForwardDrift <= 35) addFeedback(report, confDrift, false, "", "Elbows: Drifting forward - Keep them close to your side", SEV_MED);
+                else addFeedback(report, confDrift, false, "", "Elbows: Excessive drift forward - You have to keep them close to your side", SEV_CRIT);
+
+                // 4. Upper Body (20-30 Moderate, >30 Critical)
+                const leanRange = Math.max(...validLean) - Math.min(...validLean);
+                if (leanRange < 20) addFeedback(report, confBack, true, "Upper Body: Stable", "", SEV_LOW);
+                else if (leanRange <= 30) addFeedback(report, confBack, false, "", "Upper Body: Swinging detected - ineffective", SEV_MED);
+                else addFeedback(report, confBack, false, "", "Upper Body: Swinging detected, Dangerous momentum", SEV_CRIT);
+            }
+            displayReport(report);
+        }
+
+        function displayReport(data) {
+            lastReportData = data;
+            const g = document.getElementById('list-good');
+            const b = document.getElementById('list-bad');
+            const w = document.getElementById('list-warn');
+            const wCol = document.getElementById('col-warn');
+            g.innerHTML = ''; b.innerHTML = ''; w.innerHTML = '';
+
+            data.good.forEach(t => { let li = document.createElement('li'); li.innerHTML = t; g.appendChild(li); });
+            data.bad.forEach(t => { let li = document.createElement('li'); li.innerHTML = t; b.appendChild(li); });
+
+            if (data.warn.length > 0) {
+                wCol.style.display = 'block';
+                data.warn.forEach(t => { let li = document.createElement('li'); li.innerHTML = t; w.appendChild(li); });
+            } else {
+                wCol.style.display = 'none';
+            }
+        }
+
+        async function triggerAICoach() {
+            if(!lastReportData) return;
+            document.getElementById('ai-loading').style.display = 'block';
+            document.getElementById('ai-response').style.display = 'none';
+
+            // 1. הכנת הנתונים (ניקוי HTML)
+            const goodText = lastReportData.good.join(', ').replace(/<[^>]*>?/gm, '') || "None";
+            const badText = lastReportData.bad.join(', ').replace(/<[^>]*>?/gm, '') || "None";
+
+            // === הוספה 1: חילוץ הנתונים מהטבלה הצהובה ===
+            const warnText = lastReportData.warn.join(', ').replace(/<[^>]*>?/gm, '') || "None"; // <--- שורה חדשה
+
+            // === הוספה 2: עדכון הפרומפט כדי שיכלול את הנתונים וההוראות ===
+            const prompt = `You are "FormSense AI". The user performed ${currentExercise} (${currentAngle}).
+
+            Here is the analysis data:
+            ✅ GOOD FORM: ${goodText}
+            ⚠️ NEEDS CORRECTION: ${badText}
+            👁️ LOW VISIBILITY / UNCERTAIN: ${warnText}  // <--- שורה חדשה: הכנסת המידע הצהוב
+
+            Your Task:
+            Write a short, professional, and encouraging 3-sentence summary in English.
+            1. Acknowledge what they did well.
+            2. If there are "Needs Correction" items, gently point them out.
+            3. If there are "Uncertain" items, explicitly mention that the camera view was not clear enough to be sure, but remind the user to check those specific aspects themselves.
+            4. Keep it concise and motivating.`;
+
+            try {
+                const d = await callGemini(prompt);
+
+                if(d.error) throw new Error(d.error.message);
+                if(!d.candidates) throw new Error("AI returned empty response");
+
+                document.getElementById('ai-response').innerHTML = marked.parse(d.candidates[0].content.parts[0].text);
+                document.getElementById('ai-loading').style.display = 'none';
+                document.getElementById('ai-response').style.display = 'block';
+            } catch(e) { console.error(e); document.getElementById('ai-loading').style.display='none'; }
+        }
+
+        // --- SMART CARDS (TEXT ONLY + YOUTUBE + ENGLISH + FIXED LAYOUT) ---
+        async function getRecommendations() {
+            const r = document.getElementById('rec-output');
+            r.style.display = 'block';
+            r.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div> Building smart guide...';
+
+            const prompt = `The user finished ${currentExercise}. Suggest 2 specific alternative exercises.
+            Return strictly valid JSON format like this:
+            {
+              "text": "Short motivating sentence in English.",
+              "exercises": [
+                { "name": "English Exercise Name", "setup": "English setup instruction", "action": "English action instruction", "tip": "English pro tip" },
+                { "name": "English Exercise Name", "setup": "English setup instruction", "action": "English action instruction", "tip": "English pro tip" }
+              ]
+            }`;
+
+            try {
+                const d = await callGemini(prompt, 'application/json');
+
+                if (d.error) throw new Error(d.error.message);
+
+                let rawText = d.candidates[0].content.parts[0].text;
+                rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+
+                const json = JSON.parse(rawText);
+
+                let html = `<p style="text-align:center; margin-bottom:20px; font-size:1.1em; color:#fff;">${json.text}</p><div class="rec-grid">`;
+
+                json.exercises.forEach(ex => {
+                    const ytLink = `https://www.youtube.com/results?search_query=how+to+do+${encodeURIComponent(ex.name)}`;
+
+                    html += `
+                        <div class="rec-card">
+                            <div class="rec-title">${ex.name}</div>
+                            <div class="rec-step"><span class="icon">📍</span> <div><strong>Setup:</strong> ${ex.setup}</div></div>
+                            <div class="rec-step"><span class="icon">🚀</span> <div><strong>Action:</strong> ${ex.action}</div></div>
+                            <div class="rec-step"><span class="icon">💡</span> <div><strong>Tip:</strong> ${ex.tip}</div></div>
+                            <a href="${ytLink}" target="_blank" class="yt-btn">▶️ Watch on YouTube</a>
+                        </div>
+                    `;
+                });
+                html += `</div>`;
+
+                r.innerHTML = html;
+
+            } catch(e) { r.innerHTML = "Error generating guide: " + e.message; }
+        }
+    </script>
+</body>
+</html>
