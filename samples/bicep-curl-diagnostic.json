@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "1.0",
+  "exercise": "Bicep Curl",
+  "view": "Side-Right",
+  "analyzedAt": "2026-08-28T00:00:00.000Z",
+  "quality": {
+    "totalFrames": 121,
+    "validFrames": 101,
+    "validFrameRatio": 0.835,
+    "confidenceType": "MediaPipe landmark visibility"
+  },
+  "repetitions": {
+    "detected": 2,
+    "averageDurationSeconds": 2.4,
+    "mode": "repetition-aware",
+    "note": "Metrics include 2 detected complete repetitions."
+  },
+  "findings": {
+    "good": [],
+    "corrections": [{
+      "id": "curl_elbow_drift",
+      "label": "Elbow drift",
+      "status": "correction",
+      "severity": "moderate",
+      "confidence": 91,
+      "confidenceType": "landmark_visibility",
+      "message": "Forward elbow drift was detected.",
+      "cue": "Keep the upper arm stable and let the forearm create most of the visible movement.",
+      "measurement": { "value": 27.4, "unit": "degrees", "aggregation": "95th_percentile" },
+      "landmarks": [12, 14]
+    }],
+    "uncertain": []
+  }
+}

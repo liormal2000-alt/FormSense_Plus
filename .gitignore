@@ -1,15 +1,9 @@
-# Local environment and secrets
+node_modules/
+.netlify/
 .env
 .env.*
 !.env.example
-
-# Netlify local state
-.netlify/
-
-# Operating-system files
+*.log
 .DS_Store
 Thumbs.db
-
-# Dependencies and logs
-node_modules/
-npm-debug.log*
+.idea/
