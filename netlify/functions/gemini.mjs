@@ -95,7 +95,21 @@ export default async (request) => {
     const providerPayload = await providerResponse.json().catch(() => null);
     if (!providerPayload) return json({ error: 'The AI provider returned an unreadable response.' }, 502);
     if (!providerResponse.ok) {
-      console.error('Gemini request failed', providerResponse.status, providerPayload?.error?.status);
+      console.error(
+        'Gemini request failed',
+        providerResponse.status,
+        providerPayload?.error?.status,
+        safeProviderMessage(providerPayload?.error?.message)
+      );
+
+      if (providerResponse.status === 429) {
+        return json(
+          { error: 'The free AI request limit has been reached. Please wait for the quota to reset and try again.' },
+          429,
+          { 'Retry-After': providerResponse.headers.get('Retry-After') || '60' }
+        );
+      }
+
       return json({ error: 'The AI service could not complete the request.' }, 502);
     }
 
@@ -252,6 +266,12 @@ function publicError(message) {
   const error = new Error(message);
   error.publicMessage = message;
   return error;
+}
+
+function safeProviderMessage(message) {
+  return typeof message === 'string'
+    ? message.replace(/[\r\n]+/g, ' ').slice(0, 400)
+    : 'No provider message';
 }
 
 function json(payload, status = 200, extraHeaders = {}) {
