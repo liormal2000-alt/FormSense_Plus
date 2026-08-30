@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" role="img" aria-labelledby="title desc">
+  <title id="title">Front camera guide</title><desc id="desc">A person facing a centered camera with the full body visible.</desc>
+  <rect width="320" height="220" rx="18" fill="#0e1210"/>
+  <path d="M45 30h36l9 12h32v31H45z" fill="#26332c" stroke="#00f08a" stroke-width="3"/>
+  <circle cx="105" cy="57" r="8" fill="#00f08a"/><path d="M83 74l57 32" stroke="#00f08a" stroke-width="3" stroke-dasharray="7 6"/>
+  <circle cx="195" cy="42" r="18" fill="none" stroke="#f5f8f6" stroke-width="5"/>
+  <path d="M195 60v68m-44-42h88m-44 42-34 65m34-65 34 65" fill="none" stroke="#f5f8f6" stroke-width="7" stroke-linecap="round"/>
+  <rect x="138" y="16" width="114" height="190" rx="14" fill="none" stroke="#3d4b43" stroke-width="3" stroke-dasharray="8 7"/>
+</svg>

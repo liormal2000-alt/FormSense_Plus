@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "1.0",
+  "exercise": "Squat",
+  "view": "Side-Left",
+  "analyzedAt": "2026-08-28T00:00:00.000Z",
+  "quality": {
+    "totalFrames": 148,
+    "validFrames": 132,
+    "validFrameRatio": 0.892,
+    "confidenceType": "MediaPipe landmark visibility"
+  },
+  "repetitions": {
+    "detected": 3,
+    "averageDurationSeconds": 2.18,
+    "mode": "repetition-aware",
+    "note": "Metrics include 3 detected complete repetitions."
+  },
+  "findings": {
+    "good": [{
+      "id": "squat_heel_stability",
+      "label": "Heel stability",
+      "status": "good",
+      "severity": "none",
+      "confidence": 94,
+      "confidenceType": "landmark_visibility_and_sample_support",
+      "message": "The visible heel remained stable.",
+      "cue": "",
+      "measurement": { "value": 0.011, "unit": "ratio", "aggregation": "median_rep_range_over_shank_length" },
+      "landmarks": [29, 27]
+    }],
+    "corrections": [],
+    "uncertain": []
+  }
+}
