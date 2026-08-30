@@ -21,6 +21,7 @@ const video = document.getElementById('videoSource');
 const canvas = document.getElementById('outputCanvas');
 let poseEngine = null;
 let processor = null;
+let aiSummaryPending = false;
 
 bindEvents();
 
@@ -119,7 +120,11 @@ async function handleUpload(event) {
       isFinal: true
     });
     showView('view-results');
-    requestAiSummary();
+    if (combinedDiagnostic.quality.validFrames > 0) {
+      requestAiSummary();
+    } else {
+      showAiError('AI coaching is unavailable because the video did not provide enough usable movement data.');
+    }
   } catch (error) {
     console.error(error);
     if (pendingSourceUrl) URL.revokeObjectURL(pendingSourceUrl);
@@ -148,12 +153,20 @@ function loadVideo(url) {
 }
 
 async function requestAiSummary() {
-  if (!appState.diagnostic) return;
+  if (!appState.diagnostic || aiSummaryPending) return;
+  if (appState.diagnostic.quality.validFrames <= 0) {
+    showAiError('AI coaching is unavailable because the video did not provide enough usable movement data.');
+    return;
+  }
+
+  aiSummaryPending = true;
   setAiLoading();
   try {
     showAiSummary(await generateCoachSummary(appState.diagnostic));
   } catch (error) {
     showAiError(error.message);
+  } finally {
+    aiSummaryPending = false;
   }
 }
 

@@ -24,7 +24,21 @@ export class VideoProcessor {
     const handlePlaybackEnded = () => { playbackEnded = true; };
     video.addEventListener('ended', handlePlaybackEnded);
 
+    let replayBlob = null;
+
     try {
+      /*
+       * The first send also initializes MediaPipe's WASM/model assets. Run it
+       * while playback is still parked on the first frame so a cold start
+       * cannot consume most of a short video before analysis begins.
+       */
+      const initialResult = await estimatePoseWithTimeout(this.poseEngine, video);
+      if (initialResult === POSE_ESTIMATE_TIMEOUT) {
+        throw new Error('The pose model took too long to initialize. Check your connection and try again.');
+      }
+      collectResult({ result: initialResult, timestamp: video.currentTime, video, canvas, view, frames });
+      lastProcessedTime = video.currentTime;
+
       await video.play();
 
       while (!playbackEnded && !this.cancelled) {
@@ -39,16 +53,7 @@ export class VideoProcessor {
             throw new Error('Pose estimation timed out before the video finished. Please try the recording again.');
           }
 
-          if (result) {
-            renderPoseOverlay(canvas, result, { view });
-            if (result.poseLandmarks) {
-              const aspectRatio = video.videoWidth / video.videoHeight;
-              frames.push({
-                timestamp: Number(timestamp.toFixed(4)),
-                landmarks: result.poseLandmarks.map(point => toAnalysisLandmark(point, aspectRatio))
-              });
-            }
-          }
+          collectResult({ result, timestamp, video, canvas, view, frames });
 
           lastProcessedTime = timestamp;
           onProgress(video.duration ? Math.min(1, timestamp / video.duration) : 0);
@@ -59,12 +64,34 @@ export class VideoProcessor {
       }
     } finally {
       video.removeEventListener('ended', handlePlaybackEnded);
+      video.pause();
+      replayBlob = await recorder.stop();
     }
 
     if (this.cancelled) throw new Error('Video processing was cancelled.');
+    ensureFramesCollected(frames);
     onProgress(1);
-    const replayBlob = await recorder.stop();
     return { frames, replayBlob };
+  }
+}
+
+function collectResult({ result, timestamp, video, canvas, view, frames }) {
+  if (!result) return;
+  renderPoseOverlay(canvas, result, { view });
+  if (!result.poseLandmarks) return;
+
+  const aspectRatio = video.videoWidth / video.videoHeight;
+  frames.push({
+    timestamp: Number(timestamp.toFixed(4)),
+    landmarks: result.poseLandmarks.map(point => toAnalysisLandmark(point, aspectRatio))
+  });
+}
+
+export function ensureFramesCollected(frames) {
+  if (!Array.isArray(frames) || frames.length === 0) {
+    throw new Error(
+      'No body landmarks were detected. Keep your full body visible, use good lighting, and try the recording again.'
+    );
   }
 }
 
@@ -108,7 +135,6 @@ function nextVideoFrame(video) {
 
 export function hasVideoReachedEnd(video) {
   if (video.ended) return true;
-  if (video.paused && video.currentTime > 0) return true;
   if (!Number.isFinite(video.duration) || !Number.isFinite(video.currentTime)) return false;
   return video.duration - video.currentTime <= 0.05;
 }

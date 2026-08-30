@@ -60,3 +60,34 @@ test('Gemini gateway excludes client-provided finding text from the provider pro
   globalThis.fetch = originalFetch;
   delete globalThis.Netlify;
 });
+
+test('Gemini gateway preserves provider quota exhaustion as a retryable 429', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.Netlify = { env: { get: key => key === 'GEMINI_API_KEY' ? 'test-key' : null } };
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    error: { status: 'RESOURCE_EXHAUSTED', message: 'Quota exceeded.' }
+  }), {
+    status: 429,
+    headers: { 'Content-Type': 'application/json', 'Retry-After': '120' }
+  });
+
+  const diagnostic = {
+    schemaVersion: '1.0', exercise: 'Squat', view: 'Combined',
+    quality: { totalFrames: 20, validFrames: 18, validFrameRatio: 0.9 },
+    repetitions: { detected: 2, averageDurationSeconds: 2, mode: 'repetition-aware' },
+    findings: { good: [], corrections: [], uncertain: [] }
+  };
+  const response = await handler(new Request('https://example.test/.netlify/functions/gemini', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'coach_summary', diagnostic })
+  }));
+
+  assert.equal(response.status, 429);
+  assert.equal(response.headers.get('retry-after'), '120');
+  assert.deepEqual(await response.json(), {
+    error: 'The free AI request limit has been reached. Please wait for the quota to reset and try again.'
+  });
+
+  globalThis.fetch = originalFetch;
+  delete globalThis.Netlify;
+});
