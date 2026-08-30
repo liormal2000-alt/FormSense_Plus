@@ -27,7 +27,7 @@ export function recordEvaluation(diagnostic, {
     severity: status === 'correction' ? severity : 'none',
     confidence,
     message,
-    cue: status === 'uncertain' ? uncertaintyCue : cue,
+    cue: status === 'uncertain' ? uncertaintyCue : status === 'correction' ? cue : '',
     measurement,
     landmarks
   }));

@@ -2,7 +2,9 @@ import { formatView } from './workflow-ui.js';
 
 export function renderResults(diagnostic, { replayUrl, downloadName, isFinal }) {
   document.getElementById('results-step').textContent = `${diagnostic.exercise} · ${formatView(diagnostic.view)}`;
-  document.getElementById('results-title').textContent = `${diagnostic.view === 'Front' ? 'Front' : 'Side'} analysis complete`;
+  document.getElementById('results-title').textContent = diagnostic.view === 'Combined'
+    ? 'Combined movement analysis'
+    : `${diagnostic.view === 'Front' ? 'Front' : 'Side'} analysis complete`;
   renderQuality(diagnostic);
   renderFindingList('list-good', diagnostic.findings.good, 'No high-confidence positive findings were available.');
   renderFindingList('list-bad', diagnostic.findings.corrections, 'No high-confidence corrections were detected.');
@@ -17,7 +19,7 @@ export function renderResults(diagnostic, { replayUrl, downloadName, isFinal }) 
   document.getElementById('video-section').hidden = true;
   document.getElementById('toggle-replay').textContent = 'Watch skeleton replay';
 
-  document.getElementById('continue-btn').hidden = isFinal;
+  document.getElementById('continue-btn').hidden = true;
   document.getElementById('final-actions').hidden = !isFinal;
   document.getElementById('retake-btn').textContent = `Retake ${diagnostic.view === 'Front' ? 'front' : 'side'} view`;
   document.getElementById('recommend-btn').textContent = `More exercises like ${diagnostic.exercise}`;
@@ -79,7 +81,7 @@ function createFindingCard(finding) {
   message.textContent = finding.message;
   card.append(heading, message);
 
-  if (finding.cue) {
+  if (finding.status !== 'good' && finding.cue) {
     const cue = document.createElement('p');
     cue.className = 'finding-cue';
     cue.textContent = `Cue: ${finding.cue}`;
@@ -91,7 +93,8 @@ function createFindingCard(finding) {
   const metric = finding.measurement
     ? ` · ${formatMeasurement(finding.measurement)}`
     : '';
-  meta.textContent = `Tracking confidence: ${finding.confidence}%${metric}`;
+  const source = finding.sourceView ? `${formatView(finding.sourceView)} · ` : '';
+  meta.textContent = `${source}Evidence confidence: ${finding.confidence}%${metric}`;
   card.append(meta);
   return card;
 }

@@ -19,14 +19,14 @@
     "good": [],
     "corrections": [{
       "id": "curl_elbow_drift",
-      "label": "Elbow drift",
+      "label": "Upper-arm movement",
       "status": "correction",
       "severity": "moderate",
       "confidence": 91,
-      "confidenceType": "landmark_visibility",
-      "message": "Forward elbow drift was detected.",
+      "confidenceType": "landmark_visibility_and_sample_support",
+      "message": "Pronounced upper-arm movement was detected during the curl.",
       "cue": "Keep the upper arm stable and let the forearm create most of the visible movement.",
-      "measurement": { "value": 27.4, "unit": "degrees", "aggregation": "95th_percentile" },
+      "measurement": { "value": 27.4, "unit": "degrees", "aggregation": "median_rep_angle_range" },
       "landmarks": [12, 14]
     }],
     "uncertain": []

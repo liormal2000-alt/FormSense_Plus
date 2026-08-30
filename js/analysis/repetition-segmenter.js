@@ -1,4 +1,4 @@
-import { mean, movingAverage, round } from '../utils/statistics-utils.js';
+import { mean, movingAverage, percentile, round } from '../utils/statistics-utils.js';
 
 /**
  * Segments a high-low-high joint-angle signal using hysteresis.
@@ -47,13 +47,18 @@ export function segmentRepetitions(samples, config) {
       if (value >= config.startThreshold) {
         const duration = clean[index].time - clean[startIndex].time;
         if (duration >= config.minimumDuration && duration <= config.maximumDuration) {
+          const rawAngles = clean
+            .slice(startIndex, index + 1)
+            .map(sample => sample.value);
           reps.push({
             startTime: round(clean[startIndex].time, 2),
             bottomTime: round(clean[bottomIndex].time, 2),
             endTime: round(clean[index].time, 2),
             durationSeconds: round(duration, 2),
-            minimumAngle: round(smoothed[bottomIndex], 1),
-            maximumAngle: round(Math.max(...smoothed.slice(startIndex, index + 1)), 1)
+            // Boundaries use the smoothed signal, while ROM uses robust raw
+            // extrema so the moving average does not artificially reduce depth.
+            minimumAngle: round(percentile(rawAngles, 5), 1),
+            maximumAngle: round(percentile(rawAngles, 95), 1)
           });
         }
         state = 'ready';

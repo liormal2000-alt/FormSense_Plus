@@ -22,6 +22,15 @@ export function segmentConfidence(frames, indices) {
   return average === null ? 0 : Math.round(average * 100);
 }
 
+export function assessmentConfidence(validFrames, indices) {
+  const visibility = segmentConfidence(validFrames, indices) / 100;
+  const sampleSupport = Math.min(
+    1,
+    (validFrames?.length ?? 0) / ANALYSIS_CONFIG.quality.recommendedValidFrames
+  );
+  return Math.round(visibility * sampleSupport * 100);
+}
+
 export function hasEnoughFrames(frames) {
   return (frames?.length ?? 0) >= ANALYSIS_CONFIG.quality.minimumValidFrames;
 }

@@ -18,6 +18,7 @@ export const EXERCISES = Object.freeze({
     label: 'Bicep Curl',
     frontChecklist: [
       'Face the camera with both arms visible',
+      'Curl both arms at the same time for bilateral comparison',
       'Keep shoulders, elbows and wrists in frame',
       'Record at least one complete curl'
     ],

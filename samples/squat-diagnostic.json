@@ -22,10 +22,10 @@
       "status": "good",
       "severity": "none",
       "confidence": 94,
-      "confidenceType": "landmark_visibility",
+      "confidenceType": "landmark_visibility_and_sample_support",
       "message": "The visible heel remained stable.",
-      "cue": "Maintain balanced foot pressure.",
-      "measurement": { "value": 0.011, "unit": "normalized_distance", "aggregation": "baseline_delta" },
+      "cue": "",
+      "measurement": { "value": 0.011, "unit": "ratio", "aggregation": "median_rep_range_over_shank_length" },
       "landmarks": [29, 27]
     }],
     "corrections": [],

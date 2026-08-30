@@ -1,7 +1,8 @@
 import { ANALYSIS_CONFIG } from './config/analysis-config.js';
 import { analyzeSquat } from './analysis/exercises/squat-analysis.js';
 import { analyzeBicepCurl } from './analysis/exercises/bicep-curl-analysis.js';
-import { appState, advanceToSide, beginAttempt, beginSession, resetSession, setAttemptResult } from './core/state.js';
+import { mergeDiagnostics } from './analysis/merge-diagnostics.js';
+import { appState, advanceToSide, beginAttempt, beginSession, resetSession, setAttemptResult, setCombinedDiagnostic } from './core/state.js';
 import { generateCoachSummary, generateRecommendations } from './services/ai-coach.js';
 import { PoseEngine } from './vision/pose-engine.js';
 import { VideoProcessor } from './vision/video-processor.js';
@@ -32,7 +33,6 @@ function bindEvents() {
   });
   document.querySelectorAll('[data-action="home"]').forEach(button => button.addEventListener('click', goHome));
   document.getElementById('videoUploader').addEventListener('change', handleUpload);
-  document.getElementById('continue-btn').addEventListener('click', continueToSide);
   document.getElementById('retake-btn').addEventListener('click', retakeCurrentView);
   document.getElementById('error-retry').addEventListener('click', retakeCurrentView);
   document.getElementById('toggle-replay').addEventListener('click', toggleReplay);
@@ -51,11 +51,6 @@ function selectSide(side) {
   beginAttempt(side);
   configureUploadView(appState.exercise, side, 1);
   showView('view-upload');
-}
-
-function continueToSide() {
-  advanceToSide();
-  showView('view-side-select');
 }
 
 function retakeCurrentView() {
@@ -106,10 +101,22 @@ async function handleUpload(event) {
     const replayUrl = replayBlob ? URL.createObjectURL(replayBlob) : sourceUrl;
     setAttemptResult({ frames, diagnostic, sourceUrl, replayUrl });
     pendingSourceUrl = null;
-    renderResults(diagnostic, {
+
+    if (diagnostic.view === 'Front') {
+      advanceToSide();
+      showView('view-side-select');
+      return;
+    }
+
+    const combinedDiagnostic = mergeDiagnostics(
+      appState.attempts.front?.diagnostic,
+      diagnostic
+    );
+    setCombinedDiagnostic(combinedDiagnostic);
+    renderResults(combinedDiagnostic, {
       replayUrl,
-      downloadName: `FormSense_${appState.exercise.replaceAll(' ', '_')}_${appState.view}.webm`,
-      isFinal: appState.workflowStage === 1
+      downloadName: `FormSense_${appState.exercise.replaceAll(' ', '_')}_Side.webm`,
+      isFinal: true
     });
     showView('view-results');
     requestAiSummary();

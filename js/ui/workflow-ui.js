@@ -38,6 +38,7 @@ export function showFatalError(message) {
 
 export function formatView(view) {
   if (view === 'Front') return 'Front view';
+  if (view === 'Combined') return 'Front + side views';
   return view === 'Side-Right' ? 'Right side visible' : 'Left side visible';
 }
 

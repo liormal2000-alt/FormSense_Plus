@@ -10,6 +10,7 @@ test('segments a complete high-low-high movement cycle', () => {
   const repetitions = segmentRepetitions(samples, config);
   assert.equal(repetitions.length, 1);
   assert.ok(repetitions[0].minimumAngle <= 115);
+  assert.ok(repetitions[0].minimumAngle < 100);
   assert.ok(repetitions[0].durationSeconds >= 0.5);
 });
 

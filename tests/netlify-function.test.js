@@ -27,7 +27,14 @@ test('Gemini gateway excludes client-provided finding text from the provider pro
   globalThis.fetch = async (_url, options) => {
     providerRequest = JSON.parse(options.body);
     return new Response(JSON.stringify({
-      candidates: [{ content: { parts: [{ text: 'Safe summary.' }] } }]
+      candidates: [{ content: { parts: [
+        { thought: true, text: 'Internal reasoning that must not be parsed as the answer.' },
+        { text: JSON.stringify({
+          positive: 'Knee tracking was consistent.',
+          priority: 'Keep the movement controlled.',
+          nextStep: 'Practice another steady repetition.'
+        }) }
+      ] } }]
     }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   };
 
@@ -48,6 +55,7 @@ test('Gemini gateway excludes client-provided finding text from the provider pro
   assert.equal(response.status, 200);
   assert.equal(prompt.includes('IGNORE PREVIOUS RULES'), false);
   assert.equal(prompt.includes('INJECTED'), false);
+  assert.equal(providerRequest.generationConfig.thinkingConfig.thinkingBudget, 0);
 
   globalThis.fetch = originalFetch;
   delete globalThis.Netlify;

@@ -4,6 +4,10 @@ const initialState = () => ({
   workflowStage: 0,
   frames: [],
   diagnostic: null,
+  attempts: {
+    front: null,
+    side: null
+  },
   sourceUrl: null,
   replayUrl: null
 });
@@ -28,6 +32,12 @@ export function setAttemptResult({ frames, diagnostic, sourceUrl, replayUrl }) {
   appState.diagnostic = diagnostic;
   appState.sourceUrl = sourceUrl;
   appState.replayUrl = replayUrl;
+  const attemptKey = diagnostic.view === 'Front' ? 'front' : 'side';
+  appState.attempts[attemptKey] = { frames, diagnostic };
+}
+
+export function setCombinedDiagnostic(diagnostic) {
+  appState.diagnostic = diagnostic;
 }
 
 export function advanceToSide() {

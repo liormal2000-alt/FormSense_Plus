@@ -40,7 +40,7 @@ export function createFinding({
     status,
     severity,
     confidence: Number.isFinite(confidence) ? Math.round(confidence) : 0,
-    confidenceType: 'landmark_visibility',
+    confidenceType: 'landmark_visibility_and_sample_support',
     message,
     cue,
     measurement,

@@ -23,12 +23,12 @@ Test at least one clear and one intentionally poor-quality recording for every r
 
 | Exercise | View | Expected checks |
 | --- | --- | --- |
-| Squat | Front | Shoulder symmetry, knee tracking, lateral lean, foot angle, depth proxy |
-| Squat | Left side | Depth, torso angle, shin angle, heel stability |
-| Squat | Right side | Depth, torso angle, shin angle, heel stability |
-| Bicep Curl | Front | Body sway, arm symmetry, elbow flare, shoulder symmetry |
-| Bicep Curl | Left side | Extension, top position, elbow drift, torso momentum |
-| Bicep Curl | Right side | Extension, top position, elbow drift, torso momentum |
+| Squat | Front | Shoulder level, frontal knee alignment, side-to-side torso alignment |
+| Squat | Left side | Rep-level depth, forward torso inclination, shin inclination, heel stability |
+| Squat | Right side | Rep-level depth, forward torso inclination, shin inclination, heel stability |
+| Bicep Curl | Front | Side-to-side torso movement, bilateral range symmetry, upper-arm flare, shoulder level |
+| Bicep Curl | Left side | Rep-level extension, top position, upper-arm movement, forward-back torso movement |
+| Bicep Curl | Right side | Rep-level extension, top position, upper-arm movement, forward-back torso movement |
 
 For each run:
 
@@ -36,6 +36,11 @@ For each run:
 - [ ] Skeleton overlay follows the detected body.
 - [ ] Tracked and usable frame counts are displayed.
 - [ ] Low-confidence metrics appear under Uncertain rather than Corrections.
+- [ ] Positive findings do not display corrective cues.
+- [ ] Squat depth appears once and comes from the side-view repetition analysis.
+- [ ] Rep-aware measurements are labeled with `median rep ...`; fallback measurements explicitly say `video ... fallback`.
+- [ ] A level shoulder line is not flagged when the person/camera image is horizontally mirrored.
+- [ ] Repeat one known clip in portrait and landscape exports; angle-based judgments should remain materially consistent.
 - [ ] Severity tags are shown only for corrections.
 - [ ] Measurements and aggregation methods are displayed.
 - [ ] Complete reps are counted only for full cycles.

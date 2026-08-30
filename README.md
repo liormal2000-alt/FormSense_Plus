@@ -1,216 +1,351 @@
 # FormSense+
 
-FormSense+ is a browser-based exercise-form analysis application. Users upload front- and side-view workout videos, MediaPipe Pose extracts skeletal landmarks locally in the browser, deterministic exercise-specific rules evaluate movement metrics, and an optional Gemini layer converts the structured diagnostic into concise coaching language.
+**A hybrid-intelligence exercise-form analysis system for structured, explainable post-set coaching.**
 
-The project currently supports **Squat** and **Bicep Curl**. It is an educational movement-analysis tool, not a medical device and not a replacement for a qualified trainer.
+FormSense+ analyzes front- and side-view workout videos, extracts pose landmarks locally in the browser, evaluates exercise-specific biomechanical metrics with deterministic rules, and uses an optional LLM layer to translate the resulting structured diagnostic into clear coaching language.
 
-## Why this project is different
+The current version supports **Squat** and **Bicep Curl**. It is an educational movement-analysis tool, not a medical device and not a substitute for a qualified coach or healthcare professional.
 
-The LLM is not responsible for deciding whether a repetition was performed correctly. The core judgment remains deterministic and inspectable:
+## Project motivation
 
-1. MediaPipe estimates 33 pose landmarks.
-2. Frames are filtered using the visibility of the landmarks required by each analysis.
-3. Exercise- and view-specific features are extracted.
-4. A lightweight high-low-high state machine detects supported repetition cycles.
-5. Robust aggregations such as percentiles, medians and ranges are compared with configured rules.
-6. Every result is stored as a structured finding with a measurement, severity and tracking confidence.
-7. Gemini receives that diagnostic and explains it without changing the underlying judgment.
+Beginner and intermediate trainees often practice without continuous access to professional supervision. Static tutorials can demonstrate a movement, but they cannot observe a user's attempt, identify what happened, or prioritize the next correction. Personal coaching provides that feedback, but it may be expensive or unavailable.
 
-## Core features
+FormSense+ explores how computer vision and generative AI can make post-set feedback more accessible while preserving technical transparency. The project is designed around three principles:
 
-- Front- and side-view workflow for Squat and Bicep Curl
-- In-browser MediaPipe Pose processing
-- Skeleton overlay, replay and downloadable analyzed video
-- Exercise-specific biomechanical feature extraction
-- Repetition-aware analysis for complete supported movement cycles
-- Honest video-level fallback when no complete repetition is detected
-- Per-finding landmark-visibility confidence
-- Good, correction and uncertainty result categories
-- Severity-prioritized corrections
-- Secure Gemini calls through a Netlify Function
-- Camera-position guidance and processing progress
-- User-friendly failure and retry states
-- Dependency-light tests using the native Node test runner
+1. **Measure before explaining.** Coaching conclusions originate from inspectable geometric metrics, not from an unconstrained LLM judgment.
+2. **Use complementary camera views.** Front and side recordings reveal different aspects of movement and are combined before final feedback is shown.
+3. **Communicate uncertainty honestly.** Weak visual evidence is surfaced as uncertainty instead of being presented as a confident correction.
 
-## Architecture
+## Key features
+
+- Guided front- and side-view workflow for Squat and Bicep Curl
+- One combined assessment produced only after both required views are analyzed
+- In-browser MediaPipe Pose processing with a skeletal overlay
+- Exercise- and view-specific biomechanical feature extraction
+- Complete-repetition detection using smoothed movement signals and hysteresis
+- Repetition-level extrema and robust aggregation across detected repetitions
+- Explicit video-level fallback when no complete repetition is available
+- Confidence propagation from landmark visibility and usable sample support
+- Separate **To preserve**, **To improve**, and **Uncertainty** result categories
+- Severity-prioritized deterministic findings
+- Optional Gemini-generated summary and related-exercise recommendations
+- Analyzed-video replay and download when browser recording is supported
+- Camera-position guidance, progress indication, retry flows, and actionable errors
+- Serverless API-key protection and request validation through Netlify Functions
+- Dependency-light automated tests using Node's native test runner
+
+## System architecture
 
 ```mermaid
 flowchart TD
-    A["Video upload"] --> B["Pose engine"]
-    B --> C["Frame quality filter"]
-    C --> D["Feature extraction"]
-    D --> E["Repetition segmentation"]
-    E --> F["Rule evaluation"]
-    F --> G["Structured diagnostic"]
-    G --> H["Results UI"]
-    G --> I["Netlify Function"]
-    I --> J["Gemini explanation"]
+    U["Front + side videos"] --> P["Browser pose processing"]
+    P --> Q["Frame quality and visibility filtering"]
+    Q --> A["View-specific analyzers"]
+    A --> R["Repetition segmentation and metrics"]
+    R --> D1["Front diagnostic"]
+    R --> D2["Side diagnostic"]
+    D1 --> M["Multi-view diagnostic merge"]
+    D2 --> M
+    M --> F["Deterministic results UI"]
+    M --> N["Validated Netlify Function"]
+    N --> G["Gemini coaching layer"]
+    G --> C["Summary and recommendations"]
 ```
 
-All video frames and landmarks remain in the browser. Only the compact diagnostic JSON is sent to the serverless function when the user requests AI-generated text.
+The raw videos, per-frame landmarks, feature extraction, and rule evaluation remain in the browser. When generative feedback is requested, only a compact structured diagnostic and an allowed action are sent to the serverless gateway. The Gemini API key never reaches the client.
 
-## Repository structure
+## Intelligence design
 
-```text
-├── index.html                         App markup
-├── css/styles.css                     Visual system and responsive layout
-├── assets/guides/                     Camera-position illustrations
-├── js/app.js                          Application orchestration
-├── js/config/                         Thresholds, landmarks and exercise metadata
-├── js/core/                           State and diagnostic data model
-├── js/utils/                          Geometry and statistics utilities
-├── js/vision/                         Pose engine, video loop and overlay rendering
-├── js/analysis/                       Confidence, findings and rep segmentation
-├── js/analysis/exercises/             Squat and Bicep Curl analyzers
-├── js/services/                       AI client and coaching service
-├── js/ui/                             Workflow, progress and results rendering
-├── netlify/functions/gemini.mjs       Server-side Gemini gateway
-├── samples/                           Example structured diagnostics
-├── tests/                             Unit tests
-└── docs/MANUAL_QA.md                  Browser and workflow QA checklist
+FormSense+ uses a **hybrid intelligence approach**: deterministic analysis establishes what the system observed, while the LLM communicates those observations in accessible language. This separation prevents the generative layer from silently redefining the biomechanical result.
+
+### 1. Algorithmic intelligence
+
+The analytical pipeline performs the core evaluation:
+
+1. **Pose estimation** - MediaPipe extracts 33 normalized body landmarks and visibility values from each usable video frame.
+2. **Geometry correction** - normalized coordinates are adjusted for video aspect ratio before angle and distance calculations.
+3. **Quality filtering** - a metric is evaluated only when every landmark it requires is present and sufficiently visible.
+4. **Feature extraction** - exercise- and view-specific geometry is converted into angles, normalized displacements, symmetry measures, range-of-motion measures, and stability signals.
+5. **Repetition segmentation** - a smoothed joint-angle signal and hysteresis identify complete high-low-high movement cycles. Implausibly short or long cycles are rejected.
+6. **Repetition-aware aggregation** - raw extrema are calculated inside each complete repetition and then combined robustly across repetitions. This avoids treating an arbitrary frame as the representative bottom or contraction position.
+7. **Rule evaluation** - aggregated measurements are compared with configured exercise-specific reference ranges.
+8. **Confidence routing** - landmark visibility and sample support determine whether a finding is presented as reliable feedback or uncertainty.
+
+Examples of the measured movement characteristics include:
+
+| Exercise | Front view | Side view |
+| --- | --- | --- |
+| Squat | shoulder symmetry, lateral torso stability, medial knee displacement relative to the hip-ankle axis | knee-flexion depth, torso angle, forward shin angle, heel stability |
+| Bicep Curl | shoulder symmetry, torso stability, frontal upper-arm movement | elbow extension and contraction, visible upper-arm drift |
+
+These metrics are intentionally view-specific. A 2D front view should not be treated as equivalent to a side view for depth, and the system does not claim to infer unobservable properties such as pain, breathing, internal bracing, fatigue, or load suitability.
+
+### 2. Multi-view diagnostic reasoning
+
+The front and side analyses are not presented as two unrelated verdicts. FormSense+ stores both structured diagnostics and merges them into a single result after the second recording:
+
+- findings from complementary views are retained together;
+- duplicate or weaker proxy findings are resolved deliberately;
+- side-view squat depth supersedes the less reliable front-view depth proxy;
+- severity and confidence remain attached to their original measurements;
+- the LLM receives one combined diagnostic rather than generating a separate narrative after every upload.
+
+This design lets each camera angle contribute what it can observe reliably without pretending that either view alone captures the entire movement.
+
+### 3. LLM-based coaching layer
+
+Gemini receives a compact, validated representation of the deterministic result. Its role is limited to:
+
+- summarizing the most important findings;
+- explaining them in concise, supportive language;
+- prioritizing corrections without changing their rule-based status;
+- suggesting related exercises when the user explicitly requests them.
+
+The server constructs the provider prompt from validated diagnostic fields. The browser cannot submit an arbitrary prompt or instruct the model to override the analysis. Structured response schemas are used so malformed output can be detected and shown as an explicit retryable error.
+
+### Responsibility boundary
+
+| Component | Responsible for | Not responsible for |
+| --- | --- | --- |
+| MediaPipe Pose | estimating visible skeletal landmarks | deciding whether technique is correct |
+| Rule-based analysis | computing metrics, applying thresholds, assigning status and severity | writing open-ended coaching narratives |
+| Confidence layer | describing tracking quality and sample support | estimating clinical or biomechanical certainty |
+| Gemini | explaining and prioritizing the supplied diagnostic | inventing measurements or reversing deterministic findings |
+| User | deciding whether and how to apply the feedback | blindly accepting the system as professional advice |
+
+## Analysis lifecycle
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Browser
+    participant Rules
+    participant Gateway
+    participant Gemini
+
+    User->>Browser: Upload front-view video
+    Browser->>Rules: Extract landmarks and analyze
+    Rules-->>Browser: Store front diagnostic
+    User->>Browser: Upload side-view video
+    Browser->>Rules: Extract landmarks and analyze
+    Rules-->>Browser: Store side diagnostic
+    Browser->>Rules: Merge both views
+    Rules-->>User: Show combined deterministic findings
+    Browser->>Gateway: Request allowed coaching action
+    Gateway->>Gemini: Send validated structured diagnostic
+    Gemini-->>User: Summary or recommendations
 ```
 
-## Diagnostic contract
+## Diagnostic model
 
-Each finding records what was evaluated and how:
+Each finding records what was evaluated, the result, the underlying measurement, its aggregation method, and the visual evidence supporting it:
 
 ```json
 {
   "id": "curl_elbow_drift",
-  "label": "Elbow drift",
+  "label": "Upper-arm movement",
   "status": "correction",
   "severity": "moderate",
   "confidence": 91,
-  "confidenceType": "landmark_visibility",
-  "message": "Forward elbow drift was detected.",
+  "confidenceType": "landmark_visibility_and_sample_support",
+  "message": "Pronounced upper-arm movement was detected during the curl.",
   "cue": "Keep the upper arm stable and let the forearm create most of the visible movement.",
   "measurement": {
     "value": 27.4,
     "unit": "degrees",
-    "aggregation": "95th_percentile"
+    "aggregation": "median_rep_angle_range"
   },
   "landmarks": [12, 14]
 }
 ```
 
-`confidence` is explicitly a MediaPipe landmark-visibility measure. It is not a validated probability that a coaching conclusion is correct.
+Positive findings intentionally do not carry corrective cues. A cue is reserved for a finding that requires action, reducing repetition and avoiding contradictory feedback.
+
+> **Confidence semantics:** the confidence score combines MediaPipe landmark visibility with the amount of usable sample support. It is not a validated probability that the biomechanical conclusion is correct.
+
+## Repetition-aware measurement
+
+Squats use knee flexion as the repetition-cycle signal; bicep curls use elbow flexion. Repetition boundaries are detected on a smoothed signal, but the reported range-of-motion extrema are calculated from the raw valid measurements inside each complete repetition.
+
+For a metric that depends on the lowest or most contracted point, the process is:
+
+1. detect each complete repetition;
+2. calculate the relevant raw extremum inside that repetition;
+3. reject unusable repetitions or samples;
+4. combine the per-repetition values using a robust statistic, normally the median;
+5. label a video-level fallback explicitly if no complete repetition can be detected.
+
+This distinction is important: smoothing supports stable segmentation, while raw within-repetition measurements preserve the actual observed movement range.
+
+## Repository structure
+
+```text
+├── index.html                         Application markup and entry point
+├── css/styles.css                     Visual system and responsive layout
+├── assets/guides/                     Camera-position illustrations
+├── js/app.js                          Application orchestration
+├── js/config/                         Exercise metadata, landmarks and thresholds
+├── js/core/                           Application state and diagnostic model
+├── js/utils/                          Geometry and statistics utilities
+├── js/vision/                         Pose engine, processing loop and overlay
+├── js/analysis/                       Confidence, merging and repetition logic
+├── js/analysis/exercises/             Squat and Bicep Curl analyzers
+├── js/services/                       AI client and coaching service
+├── js/ui/                             Workflow, progress and results rendering
+├── netlify/functions/gemini.mjs       Validated server-side Gemini gateway
+├── samples/                           Example structured diagnostics
+├── tests/                             Automated test suite
+├── docs/MANUAL_QA.md                  Browser and workflow QA checklist
+└── netlify.toml                       Hosting, functions and security configuration
+```
+
+## Technology stack
+
+- **Frontend:** HTML5, CSS3, Vanilla JavaScript with ES modules
+- **Computer vision:** MediaPipe Pose and Drawing Utilities
+- **Video processing:** HTML Video, Canvas, `requestVideoFrameCallback`, `MediaRecorder`
+- **Generative AI:** Gemini API with structured JSON output
+- **Backend boundary:** Netlify Functions
+- **Hosting:** Netlify
+- **Testing:** Node.js native test runner
 
 ## Local development
 
 ### Requirements
 
 - Node.js 20 or later
+- npm
 - A modern Chromium-based browser is recommended
-- A Gemini API key only if AI summaries and recommendations are required
+- A Gemini API key only for AI summaries and recommendations
 
-### Setup in PyCharm
-
-1. Extract or clone this repository into a new folder.
-2. In PyCharm, choose **File → Open** and select the `formsense-plus` folder.
-3. Do not create a Python virtual environment; this is a JavaScript project.
-4. Open PyCharm's terminal and run:
+### Setup
 
 ```bash
+git clone https://github.com/liormal2000-alt/FormSense_Plus.git
+cd FormSense_Plus
 npm install
 ```
 
-5. Copy `.env.example` to `.env` and set your key:
+Copy `.env.example` to `.env` and add your key:
 
-```text
+```dotenv
 GEMINI_API_KEY=your_key_here
 ```
 
-6. Start the local Netlify environment:
+Optionally select a supported model:
+
+```dotenv
+GEMINI_MODEL=gemini-2.5-flash
+```
+
+Start the local Netlify development environment:
 
 ```bash
 npm run dev
 ```
 
-Open the local URL printed by Netlify CLI. Opening `index.html` directly is not sufficient because ES modules and the serverless function require an HTTP development server.
+Open the local URL printed by the command. Opening the application files directly is not sufficient because ES modules and the serverless function require an HTTP environment.
 
-The deterministic analysis remains usable when Gemini is unavailable; only the optional AI text will show an error state.
+The deterministic analysis remains available if Gemini is unavailable; only the optional generative sections display an error state.
 
-## Tests
+## Testing and quality assurance
+
+Run the automated suite:
 
 ```bash
 npm test
 ```
 
-The tests cover geometry, statistics, visibility filtering, severity/uncertainty routing and repetition segmentation.
+The current suite contains 39 tests covering:
 
-## Netlify deployment
+- geometry and aspect-ratio correction;
+- robust statistics and non-finite input handling;
+- landmark visibility and sample-support confidence;
+- repetition segmentation and repetition-level aggregation;
+- Squat and Bicep Curl analyzers across front and side views;
+- mirror-invariant medial knee-displacement measurement;
+- multi-view diagnostic merging and depth-proxy precedence;
+- positive/correction/uncertainty feedback routing;
+- end-of-video handling and the former 99% processing edge case;
+- Netlify gateway method, action, prompt-boundary, and schema validation.
+
+For browser-level checks, follow [`docs/MANUAL_QA.md`](docs/MANUAL_QA.md). Automated unit tests do not replace testing with varied real videos, camera positions, lighting conditions, body types, and execution styles.
+
+## Privacy and security
+
+- Video processing and landmark extraction occur locally in the browser.
+- Raw videos and frame-by-frame landmarks are not sent to Gemini.
+- `GEMINI_API_KEY` exists only in the local environment or Netlify Function environment.
+- The serverless gateway validates method, body size, action, exercise, and diagnostic structure.
+- Client-provided prose is excluded from the provider prompt where deterministic server construction is required.
+- Model responses are rendered through safe DOM APIs rather than unsanitized HTML.
+- Provider errors are mapped to controlled client-facing messages.
+- AI output cannot change the stored deterministic findings.
+- Security headers are configured through `netlify.toml`.
+
+Never commit `.env`, API keys, or local `.netlify` runtime files.
+
+## Deployment with Netlify
 
 1. Push the repository to GitHub.
-2. In Netlify, choose **Add new site → Import an existing project**.
-3. Select the GitHub repository.
-4. Netlify reads `netlify.toml`; no build command is required and the publish directory is `.`.
-5. Add `GEMINI_API_KEY` under the site's environment variables and make it available to Functions.
-6. Optionally set `GEMINI_MODEL`; otherwise the function uses `gemini-2.5-flash`.
-7. Deploy and run the manual QA checklist on the production URL.
-
-Never add the real key to `.env.example`, JavaScript files, Git history, or `netlify.toml`.
-
-## Security decisions
-
-- The Gemini key exists only in the Netlify Function environment.
-- The client cannot submit an arbitrary prompt; it can request only an allowed action with a validated diagnostic.
-- The function validates request size, schema, exercise and action.
-- AI responses are rendered using `textContent` and DOM construction instead of unsanitized `innerHTML`.
-- Provider failures are logged server-side without returning raw provider details to the browser.
-- Security headers are configured in `netlify.toml`.
-- Generated responses are never allowed to override deterministic findings.
-
-## Repetition analysis
-
-Repetition detection is intentionally limited to the two supported movement families. A smoothed joint-angle signal is processed with hysteresis:
-
-- A repetition becomes ready in the extended/standing position.
-- It must cross a configured bottom/contraction threshold.
-- It is counted only after returning to the starting range.
-- Implausibly short or long cycles are rejected.
-
-Squats use knee flexion as the cycle signal. Bicep curls use elbow flexion. When this process does not find a reliable complete cycle, the report says `video-level`; it does not claim repetition-level aggregation.
+2. In Netlify, import the existing GitHub repository.
+3. Select the production branch.
+4. Let Netlify read `netlify.toml`; no application build step is required and the publish directory is the repository root.
+5. Add `GEMINI_API_KEY` to the site's environment variables and make it available to Functions.
+6. Optionally add `GEMINI_MODEL`; otherwise the gateway uses its configured default.
+7. Deploy and complete the production checks in `docs/MANUAL_QA.md`.
 
 ## Evaluation background
 
-The original academic prototype was evaluated with five users. They praised the linear workflow and visual design, while requesting clearer camera guidance, error localization, comparative examples and better progress visibility. This version directly addresses camera guidance and progress visibility and creates landmark mappings that can support deeper replay localization later.
+The original academic prototype was evaluated with five participants completing the end-to-end recording and feedback workflow. Participants highlighted the clear linear flow and visual design, while requesting stronger camera guidance, more precise error localization, reference comparisons, and clearer processing progress.
 
-An additional persona-based LLM review highlighted an important limitation: visibility confidence is not the same as biomechanical certainty, and geometric rules cannot observe pain, breathing, bracing, fatigue, load or individual context. Those limitations are now explicit in the product and documentation.
+The refactored version directly addresses camera guidance and progress visibility, adds structured confidence communication, and creates landmark-linked diagnostics that can support more precise replay localization in future work.
+
+A separate persona-based LLM review, framed as a strength-and-conditioning audit, exposed an important trust limitation: pose visibility is not equivalent to biomechanical certainty. It also emphasized what 2D skeletal geometry cannot observe, including pain, bracing, breathing, fatigue, intent, load, and individual anatomical context. Those limitations are now explicit in both the product behavior and this documentation.
 
 ## Current limitations
 
-- Only Squat and Bicep Curl are supported.
-- Thresholds are heuristic/calibrated reference values, not clinically validated standards.
-- Pose estimation from a single 2D camera is sensitive to camera angle, occlusion, lighting and loose clothing.
-- The system does not know the user's anatomy, load, injury history, pain, goal or experience level.
-- Confidence measures landmark visibility, not correctness probability.
-- Rep segmentation assumes the recording contains recognizable complete high-low-high cycles.
-- Skeleton replay depends on browser `MediaRecorder` support; unsupported browsers fall back to the original uploaded video.
-- AI recommendations link to YouTube search results rather than a curated technique library.
+- Only Squat and Bicep Curl are currently supported.
+- Reference ranges are heuristic prototype thresholds, not clinically validated standards.
+- Threshold calibration has not yet been validated on a sufficiently large and diverse labeled dataset.
+- A single 2D camera is sensitive to perspective, camera placement, occlusion, lighting, clothing, and landmark-estimation errors.
+- Medial knee displacement is measured relative to visible hip-ankle geometry; it does not directly estimate the foot's true 3D orientation.
+- Confidence describes tracking visibility and sample support, not the probability that a coaching conclusion is correct.
+- The system cannot account for anatomy, training goal, external load, experience, injury history, pain, or fatigue.
+- Rep segmentation assumes the recording contains recognizable complete movement cycles.
+- Analyzed-video recording depends on browser `MediaRecorder` support; unsupported browsers fall back to the original video.
+- Related-exercise links use search destinations rather than a professionally curated technique library.
 - The application provides post-set analysis, not real-time safety intervention.
 
-## Future work
+## Roadmap
 
-- Per-frame rule evaluation and precise issue highlighting during replay
-- A licensed, synchronized “reference repetition” comparison
-- Additional exercises with separately validated feature sets
-- Calibration datasets with diverse body types, camera setups and execution styles
-- Formal comparison against annotations from qualified strength coaches
+- Per-frame issue localization during replay
+- A synchronized and appropriately licensed reference-repetition comparison
+- Additional exercises with independently designed and validated metric sets
+- Calibration datasets covering diverse bodies, camera setups, loads, and execution styles
+- Formal evaluation against annotations from qualified strength coaches
+- Improved repetition-quality filtering and temporal consistency metrics
 - Optional session history and longitudinal progress tracking
+- Accessibility and cross-browser testing at production scale
+
+## Human-AI interaction principles
+
+FormSense+ is designed as a reflective training aid rather than an automated authority:
+
+- **Knowledge of performance:** feedback describes how the movement was performed, not merely whether a repetition occurred.
+- **Focused correction:** the interface prioritizes actionable issues instead of overwhelming the user with every available measurement.
+- **Trust calibration:** uncertainty and confidence semantics are visible rather than hidden.
+- **Human control:** users decide whether to retry, continue, request generative explanation, or end the session.
+- **Iterative learning:** the front/side workflow, replay, and retry actions support repeated practice and reflection.
 
 ## Project origin
 
-FormSense+ began as an academic Human-AI Interaction project by **Lior Malachi and Shachar Goralnik**. This repository is a production-oriented evolution of that prototype, preserving the original product concept while strengthening its architecture, validation, security and technical honesty.
+FormSense+ began as an academic Human-AI Interaction project by **Lior Malachi** and **Shachar Goralnik**. This repository is a production-oriented evolution of the original prototype, preserving its product concept while strengthening the software architecture, multi-view reasoning, repetition analysis, test coverage, security, failure handling, and technical honesty.
 
-Before publishing under an open-source license, both project contributors should agree on the chosen license.
+Before publishing the repository under an open-source license, both contributors should agree on the selected license.
 
-## Technology
+## References
 
-- Vanilla JavaScript ES modules
-- MediaPipe Pose and Drawing Utilities
-- HTML Canvas and MediaRecorder
-- Gemini API
-- Netlify Functions and Netlify hosting
-- Node.js native test runner
-
-Useful references: [MediaPipe Pose Landmarker for Web](https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker/web_js), [Gemini model documentation](https://ai.google.dev/gemini-api/docs/models), and [Netlify Functions](https://docs.netlify.com/build/functions/overview/).
+- [MediaPipe Pose Landmarker for Web](https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker/web_js)
+- [Gemini API documentation](https://ai.google.dev/gemini-api/docs)
+- [Netlify Functions documentation](https://docs.netlify.com/build/functions/overview/)

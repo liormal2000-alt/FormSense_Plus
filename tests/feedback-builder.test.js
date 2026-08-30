@@ -22,3 +22,12 @@ test('high-confidence failed rule becomes a correction', () => {
   });
   assert.equal(diagnostic.findings.corrections[0].message, 'Correction.');
 });
+
+test('positive findings do not carry corrective cues', () => {
+  const diagnostic = createDiagnostic({ exercise: 'Squat', view: 'Front', totalFrames: 10, validFrames: 10 });
+  recordEvaluation(diagnostic, {
+    id: 'positive', label: 'Positive', passed: true, confidence: 95,
+    goodMessage: 'Good.', correctionMessage: 'Correction.', cue: 'Correct this.'
+  });
+  assert.equal(diagnostic.findings.good[0].cue, '');
+});

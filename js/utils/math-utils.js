@@ -14,6 +14,11 @@ export function getVectorAngle(p1, p2) {
   return Math.atan2(p2.y - p1.y, p2.x - p1.x) * 180 / Math.PI;
 }
 
+export function getHorizontalDeviation(p1, p2) {
+  if (![p1, p2].every(isPoint)) return null;
+  return Math.atan2(Math.abs(p2.y - p1.y), Math.abs(p2.x - p1.x)) * 180 / Math.PI;
+}
+
 export function getVerticalDeviation(p1, p2) {
   if (![p1, p2].every(isPoint)) return null;
   const dx = Math.abs(p1.x - p2.x);
@@ -31,21 +36,15 @@ export function getEuclideanDistance(p1, p2) {
   return Math.hypot(p1.x - p2.x, p1.y - p2.y);
 }
 
-export function getKneeOffset(hip, ankle, knee, side) {
-  if (![hip, ankle, knee].every(isPoint)) return null;
-  const totalHeight = ankle.y - hip.y;
-  if (Math.abs(totalHeight) < Number.EPSILON) return null;
-  const ratio = (knee.y - hip.y) / totalHeight;
+export function getMedialKneeOffset(hip, ankle, knee, bodyMidlineX) {
+  if (![hip, ankle, knee].every(isPoint) || !Number.isFinite(bodyMidlineX)) return null;
+  const verticalSpan = ankle.y - hip.y;
+  if (Math.abs(verticalSpan) < Number.EPSILON) return null;
+  const ratio = (knee.y - hip.y) / verticalSpan;
   const expectedX = hip.x + ratio * (ankle.x - hip.x);
-  const normalizedOffset = (knee.x - expectedX) / totalHeight;
-  return side === 'left' ? -normalizedOffset : normalizedOffset;
-}
-
-export function getDirectionalDrift(shoulder, elbow, side) {
-  if (![shoulder, elbow].every(isPoint)) return null;
-  const angle = Math.atan2(Math.abs(shoulder.x - elbow.x), Math.abs(shoulder.y - elbow.y)) * 180 / Math.PI;
-  const isForward = side === 'right' ? elbow.x > shoulder.x : elbow.x < shoulder.x;
-  return isForward ? angle : -angle;
+  const medialDirection = Math.sign(bodyMidlineX - expectedX);
+  if (medialDirection === 0) return 0;
+  return ((knee.x - expectedX) * medialDirection) / Math.abs(verticalSpan);
 }
 
 export function midpoint(a, b) {
